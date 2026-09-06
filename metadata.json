@@ -1,0 +1,6 @@
+{
+  "name": "Clinical Practice Workspace",
+  "description": "A minimal, professional therapist dashboard designed for 30-60 second pre-session briefings, longitudinal journey mapping, and evidence-grounded client synthesis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

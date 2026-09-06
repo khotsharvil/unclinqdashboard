@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Warm-cool ink neutrals */
+  --color-canvas: #FAFBFC;
+  --color-ink: #10151F;
+  --color-ink-soft: #3A4453;
+  --color-muted: #6B7686;
+  --color-faint: #9AA4B2;
+  --color-line: #ECEFF3;
+  --color-line-soft: #F2F5F8;
+
+  /* Single restrained accent — teal */
+  --color-accent: #0D9488;
+  --color-accent-ink: #0F766E;
+  --color-accent-wash: #F1FAF9;
+
+  /* Legacy scale kept for existing references */
+  --color-cool-50: #F8FAFC;
+  --color-cool-100: #F1F5F9;
+  --color-cool-200: #E2E8F0;
+  --color-cool-300: #CBD5E1;
+  --color-cool-400: #94A3B8;
+  --color-cool-500: #64748B;
+  --color-cool-600: #475569;
+  --color-cool-700: #334155;
+  --color-cool-800: #1E293B;
+  --color-cool-900: #0F172A;
+
+  --color-teal-700: #0F766E;
+  --color-teal-600: #0D9488;
+  --color-teal-500: #14B8A6;
+  --color-teal-100: #CCFBF1;
+  --color-teal-50: #F0FDFA;
+
+  --color-indigo-700: #4338CA;
+  --color-indigo-600: #4F46E5;
+  --color-indigo-100: #E0E7FF;
+  --color-indigo-50: #EEF2FF;
+
+  --color-amber-700: #B45309;
+  --color-amber-600: #D97706;
+  --color-amber-100: #FEF3C7;
+  --color-amber-50: #FFFBEB;
+
+  --color-rose-700: #BE123C;
+  --color-rose-600: #E11D48;
+  --color-rose-100: #FFE4E6;
+  --color-rose-50: #FFF1F2;
+
+  --color-emerald-700: #15803D;
+  --color-emerald-600: #16A34A;
+  --color-emerald-100: #DCFCE7;
+  --color-emerald-50: #F0FDF4;
+
+  --color-sky-700: #0369A1;
+  --color-sky-600: #0284C7;
+  --color-sky-100: #E0F2FE;
+  --color-sky-50: #F0F9FF;
+}
+
+html {
+  background-color: #FAFBFC;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #FAFBFC;
+  color: #10151F;
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 450;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* Optical sizing and editorial typography for Newsreader */
+.font-serif {
+  font-family: "Newsreader", Georgia, serif;
+  font-optical-sizing: auto;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* JetBrains Mono — reserved for data (times, ids, counts) */
+.font-mono {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.01em;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+p, li, blockquote {
+  text-wrap: pretty;
+}
+
+blockquote {
+  font-feature-settings: "liga" 1, "kern" 1, "dlig" 1;
+}
+
+.prose-clinical {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: #10151F;
+  letter-spacing: -0.005em;
+  max-width: 68ch;
+}
+
+/* ============================================================
+   Reusable minimal component classes
+   ============================================================ */
+
+/* Surface: white card on the warm-cool canvas, hairline border, no shadow noise */
+.u-card {
+  background-color: #FFFFFF;
+  border: 1px solid #ECEFF3;
+  border-radius: 1rem;
+}
+.u-card-hover {
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+.u-card-hover:hover {
+  border-color: #DCE2EA;
+}
+
+/* Quiet section label — replaces the loud uppercase-mono eyebrows */
+.u-eyebrow {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #9AA4B2;
+}
+
+/* Hairline divider */
+.u-divider {
+  border-color: #F2F5F8;
+}
+
+/* Neutral pill / accent pill */
+.u-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 9999px;
+  background-color: #F4F6F9;
+  color: #4B5566;
+}
+.u-chip-accent {
+  background-color: #F1FAF9;
+  color: #0F766E;
+}
+
+/* Primary + ghost buttons */
+.u-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0.5625rem 1.125rem;
+  border-radius: 0.625rem;
+  background-color: #10151F;
+  color: #FFFFFF;
+  transition: background-color 0.18s ease;
+  cursor: pointer;
+}
+.u-btn-primary:hover { background-color: #232C3A; }
+
+.u-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0.5625rem 1rem;
+  border-radius: 0.625rem;
+  background-color: #FFFFFF;
+  color: #3A4453;
+  border: 1px solid #ECEFF3;
+  transition: border-color 0.18s ease, color 0.18s ease;
+  cursor: pointer;
+}
+.u-btn-ghost:hover { border-color: #DCE2EA; color: #10151F; }
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E2E7EE; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #CBD3DE; }
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-soft-pulse {
+  animation: soft-pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

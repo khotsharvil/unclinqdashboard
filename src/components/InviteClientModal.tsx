@@ -1,0 +1,554 @@
+import React, { useState } from 'react';
+import { 
+  X, 
+  Copy, 
+  Check, 
+  Send, 
+  CheckCircle2,
+  Calendar,
+  Clock,
+  Repeat,
+  Video,
+  MapPin
+} from 'lucide-react';
+import { Client, TherapistProfile, ClientInvitation, RecurrenceCadence, SessionLocation } from '../types';
+import { INITIAL_THERAPIST_PROFILE } from '../data/therapistData';
+import { DAYS_OF_WEEK, TIME_SLOTS, DURATION_OPTIONS, CURRENT_WEEK_DATES } from '../data/calendarUtils';
+
+interface InviteClientModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  clients?: Client[];
+  existingClients?: Client[];
+  targetClient?: Client | null;
+  preselectedClient?: Client | null;
+  therapistProfile?: TherapistProfile;
+  onSendInvitation: (invitationData: ClientInvitation) => void;
+}
+
+export const InviteClientModal: React.FC<InviteClientModalProps> = ({
+  isOpen,
+  onClose,
+  clients,
+  existingClients = [],
+  targetClient,
+  preselectedClient,
+  therapistProfile,
+  onSendInvitation,
+}) => {
+  const allClients = clients || existingClients;
+  const currentTarget = preselectedClient !== undefined ? preselectedClient : targetClient;
+  const activeProfile = therapistProfile || INITIAL_THERAPIST_PROFILE;
+
+  const [selectedClientId, setSelectedClientId] = useState<string>(
+    currentTarget ? currentTarget.id : 'new'
+  );
+  const [clientName, setClientName] = useState(currentTarget ? currentTarget.name : '');
+  const [clientEmail, setClientEmail] = useState(
+    currentTarget?.email || (currentTarget ? `${currentTarget.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : '')
+  );
+
+  // Recurring session scheduling states
+  const [sessionDay, setSessionDay] = useState<string>(
+    currentTarget?.recurringSchedule?.dayOfWeek ||
+    currentTarget?.nextSession?.dayOfWeek ||
+    (currentTarget?.nextSession?.isToday ? 'Thursday' : 'Thursday')
+  );
+  const [sessionTime, setSessionTime] = useState<string>(
+    currentTarget?.recurringSchedule?.time ||
+    currentTarget?.nextSession?.time ||
+    '10:00 AM'
+  );
+  const [sessionDuration, setSessionDuration] = useState<string>(
+    currentTarget?.recurringSchedule?.duration ||
+    currentTarget?.nextSession?.duration ||
+    activeProfile?.defaultSessionDuration ||
+    '50 min'
+  );
+  const [isRecurring, setIsRecurring] = useState<boolean>(
+    currentTarget?.recurringSchedule ? currentTarget.recurringSchedule.cadence !== 'one_time' : true
+  );
+  const [recurringCadence, setRecurringCadence] = useState<RecurrenceCadence>(
+    currentTarget?.recurringSchedule?.cadence ||
+    currentTarget?.nextSession?.cadence ||
+    'weekly'
+  );
+  const [sessionLocation, setSessionLocation] = useState<SessionLocation>(
+    currentTarget?.recurringSchedule?.location ||
+    currentTarget?.nextSession?.location ||
+    'in_person'
+  );
+
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    `Hi ${currentTarget ? currentTarget.name.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${sessionDay}s at ${sessionTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+  );
+
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+
+  // Sync state when modal is opened or target client changes
+  React.useEffect(() => {
+    if (isOpen) {
+      if (currentTarget) {
+        setSelectedClientId(currentTarget.id);
+        setClientName(currentTarget.name);
+        setClientEmail(currentTarget.email || `${currentTarget.name.toLowerCase().replace(/\s+/g, '.')}@example.com`);
+        const initialDay = currentTarget.recurringSchedule?.dayOfWeek || currentTarget.nextSession?.dayOfWeek || 'Thursday';
+        const initialTime = currentTarget.recurringSchedule?.time || currentTarget.nextSession?.time || '10:00 AM';
+        const initialDuration = currentTarget.recurringSchedule?.duration || currentTarget.nextSession?.duration || '50 min';
+        const initialCadence = currentTarget.recurringSchedule?.cadence || currentTarget.nextSession?.cadence || 'weekly';
+        const initialLocation = currentTarget.recurringSchedule?.location || currentTarget.nextSession?.location || 'in_person';
+
+        setSessionDay(initialDay);
+        setSessionTime(initialTime);
+        setSessionDuration(initialDuration);
+        setIsRecurring(initialCadence !== 'one_time');
+        setRecurringCadence(initialCadence);
+        setSessionLocation(initialLocation);
+
+        setWelcomeMessage(
+          `Hi ${currentTarget.name.split(' ')[0]}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${initialDay}s at ${initialTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+        );
+      } else {
+        setSelectedClientId('new');
+        setClientName('');
+        setClientEmail('');
+        setSessionDay('Thursday');
+        setSessionTime('10:00 AM');
+        setSessionDuration('50 min');
+        setIsRecurring(true);
+        setRecurringCadence('weekly');
+        setSessionLocation('in_person');
+        setWelcomeMessage(
+          `Hi there, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on Thursdays at 10:00 AM — ${activeProfile?.name || 'Dr. Elena Vance'}`
+        );
+      }
+    }
+  }, [isOpen, currentTarget, activeProfile?.practiceName, activeProfile?.name]);
+
+  if (!isOpen) return null;
+
+  // Generate mock secure portal link with practice subdomain
+  const practiceSlug = (activeProfile?.practiceName || 'practice').toLowerCase().replace(/[^a-z0-9]/g, '') || 'portal';
+  const slug = (clientName || 'client').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const portalLink = `https://${practiceSlug}.health/join?token=client-${slug || 'portal'}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const handleClientSelectChange = (val: string) => {
+    setSelectedClientId(val);
+    if (val === 'new') {
+      setClientName('');
+      setClientEmail('');
+      setSessionDay('Thursday');
+      setSessionTime('10:00 AM');
+      setWelcomeMessage(
+        `Hi there, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on Thursdays at 10:00 AM — ${activeProfile?.name || 'Dr. Elena Vance'}`
+      );
+    } else {
+      const match = allClients.find(c => c.id === val);
+      if (match) {
+        setClientName(match.name);
+        setClientEmail(match.email || `${match.name.toLowerCase().replace(/\s+/g, '.')}@example.com`);
+        const day = match.recurringSchedule?.dayOfWeek || match.nextSession?.dayOfWeek || 'Thursday';
+        const time = match.recurringSchedule?.time || match.nextSession?.time || '10:00 AM';
+        const duration = match.recurringSchedule?.duration || match.nextSession?.duration || '50 min';
+        const cadence = match.recurringSchedule?.cadence || match.nextSession?.cadence || 'weekly';
+        const loc = match.recurringSchedule?.location || match.nextSession?.location || 'in_person';
+
+        setSessionDay(day);
+        setSessionTime(time);
+        setSessionDuration(duration);
+        setIsRecurring(cadence !== 'one_time');
+        setRecurringCadence(cadence);
+        setSessionLocation(loc);
+
+        setWelcomeMessage(
+          `Hi ${match.name.split(' ')[0]}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${day}s at ${time} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+        );
+      }
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard?.writeText(portalLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleSendInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientName.trim() || !clientEmail.trim()) return;
+
+    const sessionDate = CURRENT_WEEK_DATES[sessionDay]?.date || '2026-08-27';
+
+    onSendInvitation({
+      id: `inv-${Date.now()}`,
+      clientId: selectedClientId !== 'new' ? selectedClientId : undefined,
+      clientName: clientName.trim(),
+      clientEmail: clientEmail.trim(),
+      clientPhone: currentTarget?.phone,
+      preferredPronouns: currentTarget?.preferredPronouns,
+      portalLink,
+      status: 'pending',
+      sentDate: 'Today',
+      forms: ['Initial Intake & Goals Questionnaire', 'HIPAA Informed Consent & Telehealth Agreement', 'Longitudinal Check-in Companion (Emora)'],
+      checkInCadence: isRecurring ? (recurringCadence === 'biweekly' ? 'Bi-weekly' : 'Weekly') : 'One-time',
+      customWelcomeNote: welcomeMessage,
+      sessionDay,
+      sessionDate,
+      sessionTime,
+      duration: sessionDuration,
+      isRecurring,
+      recurringCadence: isRecurring ? recurringCadence : 'one_time',
+      location: sessionLocation,
+    });
+
+    setSentSuccess(true);
+    setTimeout(() => {
+      setSentSuccess(false);
+      onClose();
+    }, 1800);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-[#10151F]/30 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Modal Card */}
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_20px_60px_rgba(16,21,31,0.18)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-8">
+        
+        {/* Header */}
+        <div className="p-6 sm:p-7 border-b border-[#F2F5F8] bg-white flex items-center justify-between gap-4">
+          <div className="flex items-center space-x-3.5">
+            {activeProfile?.logoUrl ? (
+              <img
+                src={activeProfile.logoUrl}
+                alt={activeProfile.practiceName || 'Practice'}
+                referrerPolicy="no-referrer"
+                className="w-12 h-12 rounded-2xl object-cover border border-[#ECEFF3] shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-[#F1FAF9] text-[#0F766E] flex items-center justify-center font-serif font-semibold text-lg shrink-0">
+                {activeProfile?.practiceName ? activeProfile.practiceName[0] : 'P'}
+              </div>
+            )}
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="u-eyebrow">
+                  Client Portal Invitation
+                </span>
+                <span className="text-xs text-[#9AA4B2]">
+                  {activeProfile.practiceName}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F] mt-0.5">
+                Invite Client to {activeProfile?.practiceName || 'Client Portal'}
+              </h2>
+              <p className="text-xs sm:text-sm text-[#6B7686]">
+                Connect your client to between-session journaling, actions, and intake questionnaires
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-[#9AA4B2] hover:text-[#10151F] hover:bg-[#F1F5F9] transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSendInvite} className="p-6 sm:p-8 space-y-6 max-h-[72vh] overflow-y-auto">
+          
+          {/* Target Client Selector */}
+          <div>
+            <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">
+              Invitation Recipient
+            </label>
+            <select
+              value={selectedClientId}
+              onChange={(e) => handleClientSelectChange(e.target.value)}
+              className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
+            >
+              <option value="new">+ Invite a new client to practice</option>
+              <optgroup label="Existing Caseload">
+                {existingClients.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.portalStatus === 'invited' ? '(Invited)' : ''}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Client Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">
+                Client Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="e.g. Maya Lin"
+                className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">
+                Client Email *
+              </label>
+              <input
+                type="email"
+                required
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="client@example.com"
+                className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Session Day, Time & Recurring Schedule */}
+          <div className="p-5 rounded-xl bg-white border border-[#ECEFF3] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#F2F5F8] pb-3">
+              <div className="flex items-center space-x-2">
+                <Calendar className="w-4 h-4 text-[#0D9488]" />
+                <span className="u-eyebrow">
+                  Session Schedule & Recurrence
+                </span>
+              </div>
+              <span className="u-chip u-chip-accent text-[11px]">
+                {isRecurring ? 'Recurring Slot' : 'Single Session'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {/* Day */}
+              <div>
+                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
+                  Session Day
+                </label>
+                <select
+                  value={sessionDay}
+                  onChange={(e) => {
+                    const newDay = e.target.value;
+                    setSessionDay(newDay);
+                    setWelcomeMessage(
+                      `Hi ${clientName ? clientName.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${newDay}s at ${sessionTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+                    );
+                  }}
+                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
+                >
+                  {DAYS_OF_WEEK.map((d) => (
+                    <option key={d} value={d}>
+                      {d} ({CURRENT_WEEK_DATES[d]?.display || d})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Time */}
+              <div>
+                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
+                  Start Time
+                </label>
+                <select
+                  value={sessionTime}
+                  onChange={(e) => {
+                    const newTime = e.target.value;
+                    setSessionTime(newTime);
+                    setWelcomeMessage(
+                      `Hi ${clientName ? clientName.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${sessionDay}s at ${newTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+                    );
+                  }}
+                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
+                >
+                  {TIME_SLOTS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Duration */}
+              <div>
+                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
+                  Duration
+                </label>
+                <select
+                  value={sessionDuration}
+                  onChange={(e) => setSessionDuration(e.target.value)}
+                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
+                >
+                  {DURATION_OPTIONS.map((dur) => (
+                    <option key={dur} value={dur}>{dur}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Recurrence & Location row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {/* Recurrence Setting */}
+              <div className="space-y-1.5">
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#0D9488] border-[#ECEFF3] focus:ring-0 cursor-pointer"
+                  />
+                  <span className="text-[13px] font-medium text-[#3A4453] flex items-center gap-1.5">
+                    <Repeat className="w-3.5 h-3.5 text-[#0D9488]" />
+                    Recurring clinical schedule
+                  </span>
+                </label>
+
+                {isRecurring && (
+                  <select
+                    value={recurringCadence}
+                    onChange={(e) => setRecurringCadence(e.target.value as RecurrenceCadence)}
+                    className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
+                  >
+                    <option value="weekly">Weekly (Every {sessionDay})</option>
+                    <option value="biweekly">Bi-weekly (Every 2 weeks on {sessionDay})</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                )}
+              </div>
+
+              {/* Modality / Location */}
+              <div>
+                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
+                  Session Modality
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSessionLocation('in_person')}
+                    className={`px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 border cursor-pointer transition-colors ${
+                      sessionLocation === 'in_person'
+                        ? 'bg-[#F1FAF9] border-[#0D9488] text-[#0F766E]'
+                        : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:border-[#DCE2EA]'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>In-Person</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSessionLocation('telehealth')}
+                    className={`px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 border cursor-pointer transition-colors ${
+                      sessionLocation === 'telehealth'
+                        ? 'bg-[#F1FAF9] border-[#0D9488] text-[#0F766E]'
+                        : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:border-[#DCE2EA]'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Telehealth</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Schedule summary helper */}
+            <div className="px-3.5 py-2.5 rounded-lg bg-[#F7F9FB] border border-[#ECEFF3] flex items-center justify-between text-xs">
+              <span className="text-[#6B7686] flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-[#0D9488]" />
+                Scheduled: <span className="font-mono text-[#10151F]">{sessionDay}s at {sessionTime} ({sessionDuration})</span>
+              </span>
+              <span className="text-[#0F766E] font-medium">
+                {isRecurring ? `Recurring ${recurringCadence}` : 'One-time session'}
+              </span>
+            </div>
+          </div>
+
+          {/* Welcome Message */}
+          <div className="space-y-1.5">
+            <label className="block text-[13px] font-medium text-[#3A4453]">
+              Personalized Welcome Note
+            </label>
+            <textarea
+              rows={3}
+              value={welcomeMessage}
+              onChange={(e) => setWelcomeMessage(e.target.value)}
+              className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors leading-relaxed"
+            />
+          </div>
+
+          {/* Portal Link Box & One-Click Copy */}
+          <div className="p-4 rounded-xl bg-[#F7F9FB] border border-[#ECEFF3] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="u-eyebrow">
+                Direct Portal Registration Link
+              </span>
+              {copiedLink && (
+                <span className="text-[#0F766E] font-medium flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  Link Copied!
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                readOnly
+                value={portalLink}
+                className="flex-1 px-3.5 py-2.5 bg-white border border-[#ECEFF3] rounded-lg text-xs font-mono text-[#3A4453] select-all focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="u-btn-ghost text-xs shrink-0"
+              >
+                <Copy className="w-3.5 h-3.5 text-[#6B7686]" />
+                <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-[#6B7686]">
+              Clients can open this link on mobile or desktop to accept the invitation and begin their intake.
+            </p>
+          </div>
+
+          {/* Feedback banner */}
+          {sentSuccess && (
+            <div className="p-4 rounded-xl bg-[#F1FAF9] border border-[#CCE9E6] text-[#0F766E] text-xs sm:text-sm font-medium flex items-center space-x-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-5 h-5 text-[#0D9488] shrink-0" />
+              <span>Invitation dispatched to {clientEmail}! Client portal status updated.</span>
+            </div>
+          )}
+
+          {/* Action Footer */}
+          <div className="pt-2 border-t border-[#F2F5F8] flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="u-btn-ghost w-full sm:w-auto justify-center"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={sentSuccess}
+              className="u-btn-primary w-full sm:w-auto justify-center disabled:opacity-50"
+            >
+              <Send className="w-4 h-4 text-[#2DD4BF]" />
+              <span>{sentSuccess ? 'Sending...' : 'Send Invitation via Email'}</span>
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  );
+};

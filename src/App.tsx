@@ -13,7 +13,8 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { RealClientDetail } from './components/RealClientDetail';
-import { getToken, therapistApi, invitationsApi } from './api';
+import { TherapistOnboarding } from './components/TherapistOnboarding';
+import { getToken, getUser, therapistApi, invitationsApi } from './api';
 
 // Map a backend client (lean) into the dashboard's Client shape with safe
 // defaults so the list views never crash on missing rich fields. `_real` marks
@@ -58,6 +59,7 @@ import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(!!getToken());
+  const [onboarded, setOnboarded] = useState<boolean>(() => getUser()?.onboarding_completed !== false);
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITIES);
   const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar'>('home');
@@ -501,7 +503,9 @@ export default function App() {
   }, [authed]);
 
   // Auth gate — the dashboard now runs against the real B2B2C backend.
-  if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
+  if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;
+  // Therapist workspace-setup onboarding (first login only).
+  if (!onboarded) return <TherapistOnboarding therapistName={getUser()?.name} onDone={() => setOnboarded(true)} />;
 
   return (
     <div className="min-h-screen bg-[#FAFBFC] text-[#10151F] flex flex-col font-sans selection:bg-[#D6F1EE] selection:text-[#0F766E]">

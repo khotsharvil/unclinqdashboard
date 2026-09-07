@@ -11,9 +11,12 @@ import { ClientWorkspace } from './components/Workspace/ClientWorkspace';
 import { SettingsView } from './components/SettingsView';
 import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
+import { Login } from './components/Login';
+import { getToken } from './api';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
+  const [authed, setAuthed] = useState<boolean>(!!getToken());
   const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITIES);
   const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar'>('home');
@@ -438,9 +441,12 @@ export default function App() {
     setCurrentView('workspace');
   };
 
+  // Auth gate — the dashboard now runs against the real B2B2C backend.
+  if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
+
   return (
     <div className="min-h-screen bg-[#FAFBFC] text-[#10151F] flex flex-col font-sans selection:bg-[#D6F1EE] selection:text-[#0F766E]">
-      
+
       {/* Top Header */}
       <Header
         currentView={currentView}

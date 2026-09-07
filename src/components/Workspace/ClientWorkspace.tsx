@@ -26,6 +26,7 @@ interface ClientWorkspaceProps {
   onBackToClients: () => void;
   onUpdateClient: (updatedClient: Client) => void;
   onOpenInviteClient?: (client: Client) => void;
+  onSeedHistory?: () => void;
 }
 
 export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
@@ -36,6 +37,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   onBackToClients,
   onUpdateClient,
   onOpenInviteClient,
+  onSeedHistory,
 }) => {
   const [selectedSessionId, setSelectedSessionId] = React.useState<string | null>(null);
 
@@ -177,6 +179,16 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
                     Needs attention
                   </span>
+                )}
+
+                {onSeedHistory && (
+                  <button
+                    onClick={onSeedHistory}
+                    className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg border border-[#ECEFF3] text-[#0F766E] font-medium hover:border-[#0D9488] transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Add history
+                  </button>
                 )}
 
               </div>

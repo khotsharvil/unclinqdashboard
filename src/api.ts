@@ -33,10 +33,22 @@ async function request(method: string, path: string, body?: any) {
   return data;
 }
 
+// Multipart (image upload) — do NOT set Content-Type; the browser sets the boundary.
+async function requestForm(path: string, form: FormData) {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(BASE + path, { method: 'POST', headers, body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
+  return data;
+}
+
 export const api = {
   get: (p: string) => request('GET', p),
   post: (p: string, b?: any) => request('POST', p, b),
   patch: (p: string, b?: any) => request('PATCH', p, b),
+  postForm: (p: string, f: FormData) => requestForm(p, f),
 };
 
 // Client app origin for building invitation links the client opens.
@@ -60,7 +72,23 @@ export const invitationsApi = {
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
   overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),
+  journey: (id: string) => api.get(`/therapist/clients/${id}/journey`),
+  briefing: (id: string) => api.get(`/therapist/clients/${id}/briefing`),
+  notes: (id: string) => api.get(`/therapist/clients/${id}/notes`),
+  addNote: (id: string, body: string) => api.post(`/therapist/clients/${id}/notes`, { body }),
   profile: () => api.get('/therapist/profile'),
+
+  // Seed an existing client's history (see backend migration 010).
+  seedContext: (id: string, data: any) => api.post(`/therapist/clients/${id}/context/seed`, data),
+  extractContextText: (id: string, text: string) => api.post(`/therapist/clients/${id}/context/extract`, { text }),
+  extractContextImage: (id: string, file: File) => {
+    const f = new FormData(); f.append('image', file);
+    return api.postForm(`/therapist/clients/${id}/context/extract`, f);
+  },
+  scanNotes: (id: string, file: File) => {
+    const f = new FormData(); f.append('image', file);
+    return api.postForm(`/therapist/clients/${id}/notes/scan`, f);
+  },
 };
 
 export function inviteLink(code: string) {

@@ -14,6 +14,8 @@ import { TherapistOnboardingModal } from './components/TherapistOnboardingModal'
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
 import { getToken, getUser, authApi, therapistApi } from './api';
+import { loadRealClient, toClientStub } from './adapters/toClient';
+import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
@@ -35,6 +37,7 @@ export default function App() {
   // Invite Client Modal
   const [isInviteClientOpen, setIsInviteClientOpen] = useState(false);
   const [inviteTargetClient, setInviteTargetClient] = useState<Client | undefined>(undefined);
+  const [isSeedHistoryOpen, setIsSeedHistoryOpen] = useState(false);
 
   // Evidence slide-over panel
   const [evidencePanel, setEvidencePanel] = useState<{
@@ -328,13 +331,34 @@ export default function App() {
 
   // Select client from search or list
   const handleSelectClient = (
-    client: Client, 
+    client: Client,
     tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' = 'briefing'
   ) => {
     setSelectedClient(client);
     setActiveWorkspaceTab(tab);
     setCurrentView('workspace');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Real client → hydrate the full workspace data (tabs read from this object).
+    if ((client as any)._real) {
+      loadRealClient(client.id)
+        .then((full) => {
+          const withFlag = Object.assign(full, { _real: true });
+          setSelectedClient(withFlag);
+          setClients((prev) => prev.map((c) => (c.id === full.id ? withFlag : c)));
+        })
+        .catch(() => {});
+    }
+  };
+
+  const reloadSelectedClient = () => {
+    if (!selectedClient) return;
+    loadRealClient(selectedClient.id)
+      .then((full) => {
+        const withFlag = Object.assign(full, { _real: true });
+        setSelectedClient(withFlag);
+        setClients((prev) => prev.map((c) => (c.id === full.id ? withFlag : c)));
+      })
+      .catch(() => {});
   };
 
   // Update client data in global state
@@ -472,6 +496,20 @@ export default function App() {
     }).catch(() => {});
   }, [authed, onboarded]);
 
+  // Real caseload: replace the mock clients with the therapist's actual connected
+  // clients when there are any (feeds the SAME list + tabs; nothing is restyled).
+  // Mock stays as the fallback so an empty account still demos.
+  useEffect(() => {
+    if (!authed || !onboarded) return;
+    therapistApi.clients().then((r: any) => {
+      const rows = r?.clients || [];
+      if (!rows.length) return;
+      const stubs = rows.map(toClientStub);
+      setClients(stubs);
+      setSelectedClient(stubs[0]);
+    }).catch(() => {});
+  }, [authed, onboarded]);
+
   // Auth gate — the dashboard now runs against the real B2B2C backend.
   if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;
   // Therapist workspace-setup onboarding (first login only).
@@ -540,6 +578,16 @@ export default function App() {
             onBackToClients={() => setCurrentView('clients')}
             onUpdateClient={handleUpdateClient}
             onOpenInviteClient={handleOpenInviteModal}
+            onSeedHistory={(selectedClient as any)._real ? () => setIsSeedHistoryOpen(true) : undefined}
+          />
+        )}
+
+        {isSeedHistoryOpen && selectedClient && (
+          <SeedHistoryModal
+            clientId={selectedClient.id}
+            clientName={selectedClient.name}
+            onClose={() => setIsSeedHistoryOpen(false)}
+            onSeeded={reloadSelectedClient}
           />
         )}
 

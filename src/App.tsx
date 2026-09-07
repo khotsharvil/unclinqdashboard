@@ -13,7 +13,7 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getToken, getUser } from './api';
+import { getToken, getUser, authApi } from './api';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
@@ -442,6 +442,17 @@ export default function App() {
     setActiveWorkspaceTab('briefing');
     setCurrentView('workspace');
   };
+
+  // Confirm onboarding status from the backend (cached login may be stale).
+  useEffect(() => {
+    if (!authed) return;
+    authApi.me().then((r: any) => {
+      if (r?.user) {
+        setOnboarded(r.user.onboarding_completed !== false);
+        try { localStorage.setItem('unclinq_user', JSON.stringify(r.user)); } catch { /* ignore */ }
+      }
+    }).catch(() => {});
+  }, [authed]);
 
   // Auth gate — the dashboard now runs against the real B2B2C backend.
   if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;

@@ -12,7 +12,48 @@ import { SettingsView } from './components/SettingsView';
 import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
-import { getToken } from './api';
+import { RealClientDetail } from './components/RealClientDetail';
+import { getToken, therapistApi, invitationsApi } from './api';
+
+// Map a backend client (lean) into the dashboard's Client shape with safe
+// defaults so the list views never crash on missing rich fields. `_real` marks
+// it as backend-backed (its deep workspace reads real data, not mock).
+function initialsOf(name?: string) {
+  return (name || '?').split(' ').map((s) => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+}
+function mapRealClient(c: any): any {
+  return {
+    id: c.client_id,
+    name: c.name || c.email || 'Client',
+    email: c.email,
+    avatarInitials: initialsOf(c.name || c.email),
+    status: c.open_signals > 0 ? 'needs_attention' : 'stable',
+    portalStatus: 'active',
+    briefingStatus: c.latest_briefing_at ? 'ready' : 'none',
+    nextSession: c.next_session_at
+      ? { display: new Date(c.next_session_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), time: '', date: c.next_session_at, isToday: false }
+      : null,
+    sessions: [],
+    briefing: { observedPattern: { text: '' } },
+    _real: true,
+    _newActivity: !!c.new_activity_since_briefing,
+  };
+}
+function mapPendingInvite(i: any): any {
+  return {
+    id: `inv-${i.id}`,
+    name: i.client_name || i.client_email || 'Invited client',
+    email: i.client_email,
+    avatarInitials: initialsOf(i.client_name || i.client_email),
+    status: 'stable',
+    portalStatus: 'invited',
+    briefingStatus: 'none',
+    nextSession: null,
+    sessions: [],
+    briefing: { observedPattern: { text: '' } },
+    _real: true, _pending: true, _code: i.code,
+  };
+}
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
@@ -441,6 +482,24 @@ export default function App() {
     setCurrentView('workspace');
   };
 
+  // Load the therapist's REAL caseload + pending invitations from the backend.
+  useEffect(() => {
+    if (!authed) return;
+    let alive = true;
+    (async () => {
+      try {
+        const [cRes, iRes] = await Promise.all([therapistApi.clients(), invitationsApi.list()]);
+        if (!alive) return;
+        const real = (cRes.clients || []).map(mapRealClient);
+        const pending = (iRes.invitations || []).filter((i: any) => i.status === 'pending').map(mapPendingInvite);
+        const merged = [...real, ...pending];
+        setClients(merged);
+        setSelectedClient(real[0] || null);
+      } catch { /* keep whatever is shown */ }
+    })();
+    return () => { alive = false; };
+  }, [authed]);
+
   // Auth gate — the dashboard now runs against the real B2B2C backend.
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />;
 
@@ -499,15 +558,19 @@ export default function App() {
         )}
 
         {currentView === 'workspace' && selectedClient && (
-          <ClientWorkspace
-            client={selectedClient}
-            activeTab={activeWorkspaceTab}
-            setActiveTab={setActiveWorkspaceTab}
-            onOpenEvidence={handleOpenEvidence}
-            onBackToClients={() => setCurrentView('clients')}
-            onUpdateClient={handleUpdateClient}
-            onOpenInviteClient={handleOpenInviteModal}
-          />
+          selectedClient._real ? (
+            <RealClientDetail client={selectedClient} onBack={() => setCurrentView('clients')} />
+          ) : (
+            <ClientWorkspace
+              client={selectedClient}
+              activeTab={activeWorkspaceTab}
+              setActiveTab={setActiveWorkspaceTab}
+              onOpenEvidence={handleOpenEvidence}
+              onBackToClients={() => setCurrentView('clients')}
+              onUpdateClient={handleUpdateClient}
+              onOpenInviteClient={handleOpenInviteModal}
+            />
+          )
         )}
 
         {currentView === 'settings' && (

@@ -57,6 +57,12 @@ export const invitationsApi = {
   revoke: (id: string) => api.post(`/invitations/${id}/revoke`),
 };
 
+export const therapistApi = {
+  clients: () => api.get('/therapist/clients'),
+  overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),
+  profile: () => api.get('/therapist/profile'),
+};
+
 export function inviteLink(code: string) {
   return `${CLIENT_APP_URL}/#/onboarding?code=${code}`;
 }

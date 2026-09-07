@@ -179,23 +179,6 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                   </span>
                 )}
 
-                {client.portalStatus === 'invited' ? (
-                  <span className="inline-flex items-center gap-1.5 text-[13px] text-[#9AA4B2]">
-                    <Mail className="w-3.5 h-3.5" />
-                    <span>Portal invited</span>
-                  </span>
-                ) : (
-                  onOpenInviteClient && (
-                    <button
-                      id="workspace-invite-client-btn"
-                      onClick={() => onOpenInviteClient(client)}
-                      className="u-btn-ghost text-[13px]"
-                    >
-                      <UserPlus className="w-3.5 h-3.5 text-[#0D9488]" />
-                      <span>Invite to portal</span>
-                    </button>
-                  )
-                )}
               </div>
 
             </div>

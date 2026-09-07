@@ -13,7 +13,7 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getToken, getUser, authApi } from './api';
+import { getToken, getUser, authApi, therapistApi } from './api';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
@@ -453,6 +453,24 @@ export default function App() {
       }
     }).catch(() => {});
   }, [authed]);
+
+  // White-label branding from the real therapist profile: their uploaded logo +
+  // practice name if set, otherwise the actual Unclinq logo. (Branding only —
+  // does not touch any section or tab.)
+  useEffect(() => {
+    if (!authed || !onboarded) return;
+    therapistApi.profile().then((r: any) => {
+      const pr = r?.profile;
+      if (!pr) return;
+      setTherapistProfile((prev) => ({
+        ...prev,
+        name: pr.display_name || pr.name || prev.name,
+        practiceName: pr.practice_name || 'Unclinq',
+        logoUrl: pr.logo_url || '/logo.png',
+        credentials: pr.credentials || prev.credentials,
+      }));
+    }).catch(() => {});
+  }, [authed, onboarded]);
 
   // Auth gate — the dashboard now runs against the real B2B2C backend.
   if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;

@@ -40,7 +40,7 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
     <div className="min-h-screen bg-[#FAFBFC] flex items-center justify-center p-6 font-sans">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-2.5 mb-6 justify-center">
-          <div className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center font-serif font-semibold">U</div>
+          <img src="/logo.png" alt="Unclinq" className="w-9 h-9 object-contain" />
           <span className="text-lg font-semibold text-[#10151F]">Unclinq <span className="text-[#6B7686] text-sm font-medium">for therapists</span></span>
         </div>
 

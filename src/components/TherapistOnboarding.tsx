@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft, Upload, Check, Copy, ShieldCheck, Repeat } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Upload, Check, Copy, ShieldCheck, Repeat, Mic, MessageCircle, Sparkles, FileText } from 'lucide-react';
 import { api, invitationsApi, inviteLink, getToken } from '../api';
 
 /*
@@ -25,7 +25,15 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
     practice_name: '',
     bio: '',
     specializations: '',
+    logo_url: '',
   });
+
+  function handleLogo(file: File) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => set('logo_url', String(reader.result || ''));
+    reader.readAsDataURL(file);
+  }
   const [certName, setCertName] = useState('');
   const [certStatus, setCertStatus] = useState<'none' | 'pending'>('none');
 
@@ -80,16 +88,33 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFBFC] flex flex-col font-sans">
-      <div className="w-full max-w-xl mx-auto px-6 py-8 flex-1 flex flex-col">
-        {/* progress */}
-        <div className="flex justify-center gap-1.5 mb-8">
-          {STEPS.map((_, n) => (
-            <span key={n} className="h-1.5 rounded-full transition-all" style={{ width: n === i ? 22 : 6, background: n <= i ? '#0D9488' : '#E2E8F0' }} />
-          ))}
+    <div className="min-h-screen flex flex-col font-sans" style={{ background: 'radial-gradient(1100px 460px at 50% -8%, #E7F1F1 0%, #FAFBFC 62%)' }}>
+      {/* Brand bar */}
+      <header className="w-full">
+        <div className="max-w-2xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Unclinq" className="w-8 h-8 object-contain" />
+            <span className="font-semibold text-[#10151F]">Unclinq <span className="text-[#6B7686] text-sm font-medium">for therapists</span></span>
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#9AA4B2]">Workspace setup</span>
         </div>
+      </header>
 
-        <div className="flex-1">
+      <div className="flex-1 flex items-start justify-center px-6 pb-12">
+        <div className="w-full max-w-xl">
+          <div className="bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_24px_64px_rgba(16,21,31,0.10)] overflow-hidden">
+            {/* progress */}
+            <div className="px-7 pt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0F766E]">Step {i + 1} of {STEPS.length}</span>
+                <span className="text-[11px] text-[#9AA4B2]">{Math.round(((i + 1) / STEPS.length) * 100)}% complete</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#EDF2F4] overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-[#0D9488] to-[#2DD4BF] transition-all duration-300" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
+              </div>
+            </div>
+
+            <div className="px-7 py-7 min-h-[290px]">
           {step === 'welcome' && (
             <Card eyebrow="Welcome" title="A clearer view of therapy between sessions.">
               <p className="text-sm text-[#6B7686] leading-relaxed">Unclinq turns the activity around therapy into the small amount of context you actually need — a one-minute briefing before each session, and a longitudinal view of how your client is doing between them.</p>
@@ -121,6 +146,17 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
 
           {step === 'practice' && (
             <Card eyebrow="Practice profile" title="Set up your practice.">
+              <div className="mb-4">
+                <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">Practice logo <span className="text-[#9AA4B2] font-normal">(optional — white-labels your workspace)</span></label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  {form.logo_url
+                    ? <img src={form.logo_url} alt="logo" className="w-12 h-12 rounded-xl object-cover border border-[#ECEFF3]" />
+                    : <span className="w-12 h-12 rounded-xl bg-[#F1FAF9] text-[#0F766E] flex items-center justify-center"><Upload className="w-4 h-4" /></span>}
+                  <span className="text-sm text-[#0F766E] font-medium">{form.logo_url ? 'Change logo' : 'Upload your logo'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleLogo(e.target.files[0])} />
+                </label>
+                <p className="text-[11px] text-[#9AA4B2] mt-1.5">Upload your logo and clients + your dashboard show your brand instead of Unclinq’s.</p>
+              </div>
               <Field label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
               <Field label="Specializations (comma-separated)" value={form.specializations} onChange={(v) => set('specializations', v)} placeholder="Anxiety, Trauma, CBT" />
               <div className="mt-3">
@@ -133,10 +169,36 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
 
           {step === 'how' && (
             <Card eyebrow="How Unclinq works" title="Unclinq works around your sessions.">
-              <div className="text-sm font-mono leading-relaxed p-4 rounded-xl bg-[#F7F9FB] border border-[#ECEFF3] text-[#10151F]">
-                Session<br />&nbsp;&nbsp;↓<br />Client’s week (Journal · Emora · actions)<br />&nbsp;&nbsp;↓<br />AI synthesis → Therapy Moments<br />&nbsp;&nbsp;↓<br />Next-session briefing<br />&nbsp;&nbsp;↓<br />Session
+              <div className="relative">
+                {/* connecting spine */}
+                <div className="absolute left-[19px] top-6 bottom-14 w-0.5 bg-gradient-to-b from-[#0D9488]/40 via-[#0D9488]/25 to-[#0D9488]/10" />
+                {[
+                  { Icon: Mic, title: 'Session', sub: 'You meet — recorded in the client’s app, with consent.' },
+                  { Icon: MessageCircle, title: 'The client’s week', sub: 'Journal · Emora · actions, between sessions.' },
+                  { Icon: Sparkles, title: 'AI synthesis', sub: 'Woven into Therapy Moments — evidence, not noise.' },
+                  { Icon: FileText, title: 'Next-session briefing', sub: 'One-minute, evidence-backed prep.' },
+                ].map(({ Icon, title, sub }, i) => (
+                  <div key={i} className="relative flex items-start gap-3.5 pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-[#F1FAF9] border border-[#CCE9E6] flex items-center justify-center shrink-0 z-10">
+                      <Icon className="w-[18px] h-[18px] text-[#0D9488]" />
+                    </div>
+                    <div className="pt-1.5 flex-1 bg-white rounded-xl border border-[#ECEFF3] px-4 py-3 -mt-0.5">
+                      <p className="text-sm font-semibold text-[#10151F]">{title}</p>
+                      <p className="text-xs text-[#6B7686] mt-0.5 leading-relaxed">{sub}</p>
+                    </div>
+                  </div>
+                ))}
+                {/* loops back */}
+                <div className="relative flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-[#0D9488] flex items-center justify-center shrink-0 z-10">
+                    <Repeat className="w-[18px] h-[18px] text-white" />
+                  </div>
+                  <p className="text-sm font-medium text-[#0F766E]">…and the next session starts warmer than the last.</p>
+                </div>
               </div>
-              <p className="text-sm text-[#6B7686] mt-3">Less time piecing together context — more time on the session.</p>
+              <div className="mt-5 p-3.5 rounded-xl bg-[#F1FAF9] border border-[#CCE9E6]">
+                <p className="text-sm text-[#0F766E] font-medium">Less time piecing together context — more time on the session.</p>
+              </div>
             </Card>
           )}
 
@@ -174,27 +236,33 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
               <p className="text-sm text-[#6B7686]">Briefing, Sessions and Journey become more useful as your clients use Unclinq between sessions.</p>
             </Card>
           )}
-        </div>
+              {error && <p className="text-xs text-[#B0332F] mt-4">{error}</p>}
+            </div>
 
-        {error && <p className="text-xs text-[#B0332F] mt-3">{error}</p>}
-
-        {/* nav */}
-        <div className="flex items-center gap-2 pt-6">
-          {i > 0 && step !== 'done' && <button onClick={back} disabled={busy} className="u-btn-ghost"><ArrowLeft className="w-4 h-4" /><span>Back</span></button>}
-          <div className="flex-1" />
-          {step === 'professional' ? (
-            <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
-          ) : step === 'practice' ? (
-            <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
-          ) : step === 'invite' ? (
-            code
-              ? <button onClick={next} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
-              : <button onClick={generateInvite} disabled={busy || !invName.trim() || !invEmail.trim()} className="u-btn-primary"><span>Generate invitation</span><ArrowRight className="w-4 h-4" /></button>
-          ) : step === 'done' ? (
-            <button onClick={finish} disabled={busy} className="u-btn-primary"><span>Go to my dashboard</span><ArrowRight className="w-4 h-4" /></button>
-          ) : (
-            <button onClick={next} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
-          )}
+            {/* nav footer */}
+            <div className="flex items-center gap-2 px-7 py-5 border-t border-[#F2F5F8] bg-[#FCFDFE]">
+              {i > 0 && step !== 'done' && <button onClick={back} disabled={busy} className="u-btn-ghost"><ArrowLeft className="w-4 h-4" /><span>Back</span></button>}
+              <div className="flex-1" />
+              {step === 'professional' ? (
+                <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+              ) : step === 'practice' ? (
+                <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+              ) : step === 'invite' ? (
+                code ? (
+                  <button onClick={next} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+                ) : (
+                  <>
+                    <button onClick={next} className="u-btn-ghost"><span>Skip for now</span></button>
+                    <button onClick={generateInvite} disabled={busy || !invName.trim() || !invEmail.trim()} className="u-btn-primary"><span>Generate invitation</span><ArrowRight className="w-4 h-4" /></button>
+                  </>
+                )
+              ) : step === 'done' ? (
+                <button onClick={finish} disabled={busy} className="u-btn-primary"><span>Go to my dashboard</span><ArrowRight className="w-4 h-4" /></button>
+              ) : (
+                <button onClick={next} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -212,7 +280,7 @@ const Field: React.FC<{ label: string; value: string; onChange: (v: string) => v
   <div className="mb-3">
     <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">{label}</label>
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white" />
+      className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white focus:ring-2 focus:ring-[#0D9488]/15 transition-all" />
   </div>
 );
 const Principle: React.FC<{ title: string; body: string }> = ({ title, body }) => (

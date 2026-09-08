@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { INITIAL_CLIENTS, INITIAL_ACTIVITIES } from './data/mockData';
 import { INITIAL_THERAPIST_PROFILE } from './data/therapistData';
 import { Client, EvidenceGroup, ActivityItem, TherapistNote, TherapistProfile, ClientInvitation, ScheduledSession } from './types';
-import { generateInitialSessions, CURRENT_WEEK_DATES } from './data/calendarUtils';
+import { CURRENT_WEEK_DATES } from './data/calendarUtils';
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { ClientsView } from './components/ClientsView';
@@ -21,13 +20,15 @@ import { InviteClientModal } from './components/InviteClientModal';
 export default function App() {
   const [authed, setAuthed] = useState<boolean>(!!getToken());
   const [onboarded, setOnboarded] = useState<boolean>(() => getUser()?.onboarding_completed !== false);
-  const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
-  const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITIES);
+  // Real data only — no mock seed. Empty until the backend loads the therapist's
+  // actual caseload; an empty account shows honest empty states, never sample clients.
+  const [clients, setClients] = useState<Client[]>([]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar'>('home');
-  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>(() => generateInitialSessions(INITIAL_CLIENTS));
-  
+  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>([]);
+
   // Selected client for Workspace
-  const [selectedClient, setSelectedClient] = useState<Client | null>(INITIAL_CLIENTS[0]);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'journey' | 'sessions' | 'actions' | 'notes'>('briefing');
 
   // Therapist Profile & Onboarding

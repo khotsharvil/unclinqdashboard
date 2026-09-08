@@ -101,7 +101,20 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
       <div>
         {filteredClients.length === 0 ? (
           <div className="p-16 text-center bg-white border border-[#ECEFF3] rounded-2xl">
-            <p className="text-base font-serif text-[#6B7686]">No clients match your filter criteria.</p>
+            {clients.length === 0 ? (
+              <>
+                <p className="text-lg font-serif text-[#10151F]">No clients yet.</p>
+                <p className="text-sm text-[#6B7686] mt-1.5 mb-5">Invite your first client — they’ll get a code to connect and start sharing between-session context.</p>
+                <button
+                  onClick={() => onOpenInviteClient()}
+                  className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg bg-[#0D9488] text-white font-medium cursor-pointer"
+                >
+                  Invite a client
+                </button>
+              </>
+            ) : (
+              <p className="text-base font-serif text-[#6B7686]">No clients match your filter criteria.</p>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8] overflow-hidden">

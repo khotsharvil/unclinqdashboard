@@ -524,7 +524,10 @@ export default function App() {
   if (!onboarded) return <TherapistOnboarding therapistName={getUser()?.name} onDone={() => setOnboarded(true)} />;
 
   return (
-    <div className="min-h-screen bg-[#FAFBFC] text-[#10151F] flex flex-col font-sans selection:bg-[#D6F1EE] selection:text-[#0F766E]">
+    <div
+      className="min-h-screen text-[#10151F] flex flex-col font-sans selection:bg-[#D6F1EE] selection:text-[#0F766E]"
+      style={{ background: 'radial-gradient(1150px 520px at 50% -12%, #E7F1F1 0%, rgba(231,241,241,0) 60%), #FAFBFC' }}
+    >
 
       {/* Top Header */}
       <Header

@@ -204,6 +204,36 @@ blockquote {
 }
 .u-btn-ghost:hover { border-color: #DCE2EA; color: #10151F; }
 
+/* ============================================================
+   Onboarding "feel" carried into the dashboard (shell only —
+   no layout/section/content changes). Calm gradient canvas lives
+   on the app root; here we gently elevate cards + soften inputs.
+   ============================================================ */
+
+/* Gently elevated white cards (the onboarding uses a soft lifted card;
+   the dashboard was deliberately flat — this warms it without noise). */
+.u-card,
+.bg-white.rounded-2xl {
+  box-shadow: 0 1px 2px rgba(16, 21, 31, 0.04), 0 14px 36px rgba(16, 21, 31, 0.06);
+}
+.bg-white.rounded-xl {
+  box-shadow: 0 1px 2px rgba(16, 21, 31, 0.03), 0 8px 22px rgba(16, 21, 31, 0.05);
+}
+
+/* Soft inset inputs with a teal focus ring — matches the onboarding fields. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea,
+select {
+  background-color: #F7F9FB;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #0D9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.14);
+}
+
 /* Subtle scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

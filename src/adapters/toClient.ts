@@ -8,7 +8,22 @@
 import { therapistApi } from '../api';
 import type {
   Client, BriefingData, JourneyPattern, SessionRecord, ActionItem, TherapistNote,
+  ActivityItem, ScheduledSession,
 } from '../types';
+
+const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function timeAgo(iso?: string | null): string {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(ms / 3600000);
+  if (h < 1) return 'just now';
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+function msToTs(ms?: number): string {
+  const s = Math.floor((ms || 0) / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
 function initials(name = ''): string {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -160,18 +175,34 @@ function seededInitialSession(journey: any): SessionRecord | null {
   };
 }
 
-function toSessions(journey: any): SessionRecord[] {
-  const real = (journey?.sessions || []).map((s: any, i: number): SessionRecord => ({
-    id: s.id,
-    sessionNumber: i + 1,
-    date: fmtFull(s.occurred_at),
-    summary: s.session_summary || 'Session recorded.',
-    keyThemes: [],
-    interventions: [],
-    homework: '',
-    therapistObservations: '',
-    transcript: [],
-  }));
+const MEM_INTERVENTION = ['intervention', 'therapist_guidance', 'agreed_action'];
+
+// Full session records — fetches each session's detail (transcript + memory +
+// exercises) in parallel and maps into the Sessions tab shape.
+async function buildSessions(journey: any): Promise<SessionRecord[]> {
+  const list = journey?.sessions || [];
+  const details = await Promise.all(list.map((s: any) => therapistApi.session(s.id).catch(() => null)));
+  const real = list.map((s: any, i: number): SessionRecord => {
+    const d = details[i] || {};
+    const mem = d.memory || [];
+    const segs = d.transcript || [];
+    return {
+      id: s.id,
+      sessionNumber: i + 1,
+      date: fmtFull(s.occurred_at),
+      duration: d.session?.duration_seconds ? `${Math.round(d.session.duration_seconds / 60)} min` : undefined,
+      summary: d.session?.session_summary || s.session_summary || 'Session recorded.',
+      keyThemes: mem.filter((m: any) => m.kind === 'theme').map((m: any) => m.content).slice(0, 8),
+      interventions: mem.filter((m: any) => MEM_INTERVENTION.includes(m.kind)).map((m: any) => m.content).slice(0, 8),
+      homework: (d.exercises || []).map((e: any) => e.description).filter(Boolean).join('; '),
+      therapistObservations: '',
+      transcript: segs.map((t: any) => ({
+        speaker: (t.speaker === 'therapist' ? 'Therapist' : 'Client') as 'Therapist' | 'Client',
+        timestamp: msToTs(t.start_ms),
+        text: t.text || '',
+      })),
+    };
+  });
   const seed = seededInitialSession(journey);
   return seed ? [seed, ...real] : real;
 }
@@ -264,9 +295,80 @@ export async function loadRealClient(clientId: string): Promise<Client> {
       : null,
     briefing: toBriefing(briefing, journey, latestDate),
     journeyPatterns: toPatterns(journey),
-    sessions: toSessions(journey),
+    sessions: await buildSessions(journey),
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),
     evidenceStore: buildEvidenceStore(journey),
   };
+}
+
+// ── Home + Calendar + pending invites, derived from the real caseload rows ──
+// (rows = the /therapist/clients payload; no extra per-client fetch needed.)
+
+// Home activity feed: most-recent between-session activity across clients.
+export function toActivities(rows: any[]): ActivityItem[] {
+  return (rows || [])
+    .filter((r) => r.latest_activity_at)
+    .sort((a, b) => new Date(b.latest_activity_at).getTime() - new Date(a.latest_activity_at).getTime())
+    .slice(0, 12)
+    .map((r) => ({
+      id: `act-${r.client_id}`,
+      clientId: r.client_id,
+      clientName: r.name || 'Client',
+      action: r.new_activity_since_briefing ? 'New activity since the last briefing' : 'Logged a between-session moment',
+      timeAgo: timeAgo(r.latest_activity_at),
+      type: 'journal',
+    }));
+}
+
+// Calendar: one scheduled session per client with a next_session_at.
+export function toScheduledSessions(rows: any[]): ScheduledSession[] {
+  return (rows || [])
+    .filter((r) => r.next_session_at)
+    .map((r) => {
+      const dt = new Date(r.next_session_at);
+      return {
+        id: `sess-${r.client_id}`,
+        clientId: r.client_id,
+        clientName: r.name || 'Client',
+        avatarInitials: initials(r.name),
+        clientStatus: (r.open_signals > 0 ? 'needs_attention' : 'active') as Client['status'],
+        briefingStatus: (r.new_activity_since_briefing ? 'new_activity' : 'ready') as ScheduledSession['briefingStatus'],
+        date: dt.toISOString().slice(0, 10),
+        dayOfWeek: DOW[dt.getDay()],
+        time: dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        duration: '50 min',
+        location: 'telehealth',
+        isRecurring: false,
+        recurringCadence: 'weekly',
+        status: 'scheduled',
+      };
+    });
+}
+
+// Pending invitations → non-clickable caseload rows with a "pending" badge.
+export function pendingInviteStubs(invitations: any[]): Client[] {
+  return (invitations || [])
+    .filter((i) => i.status === 'pending')
+    .map((i) => {
+      const name = i.client_name || i.client_email || 'Invited client';
+      return {
+        id: `invite:${i.id}`,
+        name,
+        avatarInitials: initials(name),
+        email: i.client_email,
+        portalStatus: 'invited',
+        status: 'upcoming',
+        briefingStatus: 'pending',
+        nextSession: null,
+        lastSession: null,
+        briefing: emptyBriefing(),
+        journeyPatterns: [],
+        sessions: [],
+        actions: [],
+        notes: [],
+        evidenceStore: {},
+        _pending: true,
+      } as Client & { _pending: boolean };
+    });
 }

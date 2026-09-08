@@ -13,8 +13,8 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getToken, getUser, authApi, therapistApi } from './api';
-import { loadRealClient, toClientStub } from './adapters/toClient';
+import { getToken, getUser, authApi, therapistApi, invitationsApi } from './api';
+import { loadRealClient, toClientStub, toActivities, toScheduledSessions, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
 
@@ -334,6 +334,8 @@ export default function App() {
     client: Client,
     tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' = 'briefing'
   ) => {
+    // Pending invitations have no account yet — don't open a workspace for them.
+    if ((client as any)._pending) return;
     setSelectedClient(client);
     setActiveWorkspaceTab(tab);
     setCurrentView('workspace');
@@ -505,8 +507,14 @@ export default function App() {
       const rows = r?.clients || [];
       if (!rows.length) return;
       const stubs = rows.map(toClientStub);
-      setClients(stubs);
       setSelectedClient(stubs[0]);
+      // Home feed + Calendar, derived from the same rows (no extra fetch).
+      setActivities(toActivities(rows));
+      setScheduledSessions(toScheduledSessions(rows));
+      // Append pending invitations as non-clickable "pending" rows.
+      invitationsApi.list()
+        .then((ir: any) => setClients([...stubs, ...pendingInviteStubs(ir?.invitations || [])]))
+        .catch(() => setClients(stubs));
     }).catch(() => {});
   }, [authed, onboarded]);
 

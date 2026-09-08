@@ -107,6 +107,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8] overflow-hidden">
             {filteredClients.map((client) => {
               const isNeedsAttention = client.status === 'needs_attention';
+              const isPending = client.portalStatus === 'invited';
               const avatarTheme = getClientAvatarTheme(client.id);
 
               return (
@@ -114,7 +115,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                   key={client.id}
                   id={`client-card-${client.id}`}
                   onClick={() => onSelectClient(client, 'briefing')}
-                  className="px-5 sm:px-6 py-4 flex items-center gap-4 hover:bg-[#FAFBFC] transition-colors cursor-pointer group"
+                  className={`px-5 sm:px-6 py-4 flex items-center gap-4 transition-colors group ${isPending ? 'opacity-80 cursor-default' : 'hover:bg-[#FAFBFC] cursor-pointer'}`}
                 >
                   <div className={`w-11 h-11 rounded-2xl bg-white border ${avatarTheme.border} ${avatarTheme.text} flex items-center justify-center font-serif text-base font-semibold shrink-0`}>
                     {client.avatarInitials}
@@ -125,25 +126,32 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       <h2 className="text-[17px] font-serif font-semibold text-[#10151F] group-hover:text-[#0F766E] transition-colors truncate">
                         {client.name}
                       </h2>
-                      {isNeedsAttention && (
+                      {isNeedsAttention && !isPending && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] shrink-0" title="Needs attention" />
+                      )}
+                      {isPending && (
+                        <span className="text-[11px] font-medium text-[#B45309] bg-[#FEF3E2] border border-[#F5D9A8] rounded-full px-2 py-0.5 shrink-0">
+                          Invitation pending
+                        </span>
                       )}
                     </div>
                     <p className="text-[13px] text-[#9AA4B2] truncate mt-0.5">
-                      {client.briefing.observedPattern.text}
+                      {isPending ? (client.email || 'Waiting for the client to accept') : client.briefing.observedPattern.text}
                     </p>
                   </div>
 
                   <div className="hidden sm:block text-right shrink-0 w-40">
                     <p className="text-[13px] text-[#6B7686] truncate">
-                      {client.nextSession ? client.nextSession.display : 'Not scheduled'}
+                      {isPending ? 'Invite sent' : (client.nextSession ? client.nextSession.display : 'Not scheduled')}
                     </p>
-                    <p className="text-[12px] text-[#C3CBD6] mt-0.5">
-                      <span className="font-mono tabular-nums">{client.sessions.length}</span> sessions
-                    </p>
+                    {!isPending && (
+                      <p className="text-[12px] text-[#C3CBD6] mt-0.5">
+                        <span className="font-mono tabular-nums">{client.sessions.length}</span> sessions
+                      </p>
+                    )}
                   </div>
 
-                  <ArrowRight className="w-4 h-4 text-[#C3CBD6] group-hover:text-[#0F766E] group-hover:translate-x-0.5 transition-all shrink-0" />
+                  {!isPending && <ArrowRight className="w-4 h-4 text-[#C3CBD6] group-hover:text-[#0F766E] group-hover:translate-x-0.5 transition-all shrink-0" />}
                 </div>
               );
             })}

@@ -75,6 +75,7 @@ export const therapistApi = {
   journey: (id: string) => api.get(`/therapist/clients/${id}/journey`),
   briefing: (id: string) => api.get(`/therapist/clients/${id}/briefing`),
   notes: (id: string) => api.get(`/therapist/clients/${id}/notes`),
+  session: (sessionId: string) => api.get(`/sessions/${sessionId}`),
   addNote: (id: string, body: string) => api.post(`/therapist/clients/${id}/notes`, { body }),
   profile: () => api.get('/therapist/profile'),
 

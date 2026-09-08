@@ -58,9 +58,9 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     mentionsCount: s.sources?.events || s.event_count || 0,
     journalCount: s.sources?.events || 0,
     conversationsCount: s.sources?.reflections || 0,
-    evidenceGroupId: '',
+    evidenceGroupId: 'ev-changed',
   };
-  b.clientWantsToDiscuss = { quote: s.wants_to_discuss || '', context: s.why_flagged || '', conversationEvidenceId: '' };
+  b.clientWantsToDiscuss = { quote: s.wants_to_discuss || '', context: s.why_flagged || '', conversationEvidenceId: 'ev-discuss' };
   if (s.technique_application) {
     b.whatTheyTried = [{ id: 'tech', name: s.technique_application, attempted: 1, completed: 0, clientResponse: '', status: 'mixed' }];
   }
@@ -68,7 +68,7 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     text: s.pattern || '',
     observedCount: s.recurrence_count || 0,
     lastSeen: '',
-    evidenceGroupId: '',
+    evidenceGroupId: 'ev-pattern',
     clinicalNoteSeparateFromObservation: '',
   };
   // Worth-exploring + engagement prompt, plain and non-prescriptive.
@@ -80,6 +80,41 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   b.worthExploring = explore;
   b.context = { previousSessionDate: latestSessionDate, keyPoints: (journey?.goals || []).slice(0, 4), previousSessionId: '' };
   return b;
+}
+
+const SRC: Record<string, 'Journal' | 'Emora' | 'Check-in' | 'Voice' | 'Exercise'> = {
+  journal: 'Journal', emora: 'Emora', check_in: 'Check-in', manual: 'Check-in', exercise: 'Exercise', voice: 'Voice',
+};
+
+// Build the evidence store so "View supporting moments" resolves to real, dated
+// moments in the client's own words. Every AI claim on the dashboard drills to this.
+function buildEvidenceStore(journey: any): Record<string, any> {
+  // id → EvidenceItem, from the raw events + significant moments the model carries.
+  const byId: Record<string, any> = {};
+  for (const e of journey?.events || []) {
+    if (!e.id) continue;
+    byId[e.id] = { id: e.id, date: fmtDate(e.occurred_at), source: SRC[e.source] || 'Check-in', snippet: e.reflection || e.trigger || 'A logged moment' };
+  }
+  for (const m of journey?.significant_moments || []) {
+    if (!m.id) continue;
+    byId[m.id] = { id: m.id, date: fmtDate(m.at), source: 'Journal', snippet: m.reflection || m.trigger || 'A significant moment', context: m.share_reason || undefined };
+  }
+  const item = (r: any) => byId[r.id] || { id: r.id || Math.random().toString(36).slice(2), date: fmtDate(r.at), source: 'Check-in' as const, snippet: r.trigger || 'A logged moment' };
+  const group = (id: string, title: string, refs: any[]) => ({ id, title, items: (refs || []).map(item) });
+
+  const store: Record<string, any> = {};
+  const patterns = journey?.patterns || [];
+  const changes = journey?.observed_changes || [];
+  const sig = journey?.significant_moments || [];
+
+  store['ev-pattern'] = group('ev-pattern', patterns[0]?.trigger ? `“${patterns[0].trigger}” — supporting moments` : 'Supporting moments', patterns[0]?.evidence || []);
+  store['ev-changed'] = group('ev-changed', 'What changed — supporting moments', (changes.flatMap((c: any) => c.evidence || [])).slice(0, 8));
+  store['ev-discuss'] = group('ev-discuss', 'In the client’s words', sig.slice(0, 5).map((m: any) => ({ id: m.id, at: m.at, trigger: m.trigger })));
+  patterns.forEach((p: any, i: number) => { store[`pat-${i}`] = group(`pat-${i}`, p.trigger || p.chain || 'Recurring pattern', p.evidence || []); });
+  // Fallbacks so a group is never totally empty when we do have moments.
+  const allSig = sig.map((m: any) => ({ id: m.id, at: m.at, trigger: m.trigger }));
+  for (const k of ['ev-changed', 'ev-discuss', 'ev-pattern']) if (!store[k].items.length) store[k] = group(k, store[k].title, allSig);
+  return store;
 }
 
 function toPatterns(journey: any): JourneyPattern[] {
@@ -202,7 +237,12 @@ export async function loadRealClient(clientId: string): Promise<Client> {
   ]);
 
   const user = ov.client || {};
+  // The journey endpoint returns the model plus raw sessions/events/milestones at the
+  // TOP level — merge them onto the model so the mappers can read journey.events etc.
   const journey = jr.journey || {};
+  journey.events = jr.events || journey.events || [];
+  journey.sessions = jr.sessions || journey.sessions || [];
+  journey.milestones = jr.milestones || journey.milestones || [];
   const briefing = br.briefing?.structured || null;
   const latestDate = fmtFull(ov.latest_session?.occurred_at);
   const hasActivity = (journey.session_count || 0) > 0 || (journey.significant_moments || []).length > 0 || !!briefing;
@@ -227,6 +267,6 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     sessions: toSessions(journey),
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),
-    evidenceStore: {},
+    evidenceStore: buildEvidenceStore(journey),
   };
 }

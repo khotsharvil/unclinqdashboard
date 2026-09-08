@@ -19,6 +19,8 @@ interface Props {
 
 export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClose, onSeeded }) => {
   const [clientSummary, setClientSummary] = useState('');
+  const [wantedHelp, setWantedHelp] = useState('');
+  const [experiencing, setExperiencing] = useState('');
   const [focus, setFocus] = useState('');
   const [goals, setGoals] = useState('');
   const [techniques, setTechniques] = useState('');
@@ -42,6 +44,8 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
     if (Array.isArray(p.concerns) && p.concerns.length) setConcerns(p.concerns.join('\n'));
     if (p.risk_note) setRiskNote(p.risk_note);
     if (p.client_summary) setClientSummary(p.client_summary);
+    if (p.wanted_help_with) setWantedHelp(p.wanted_help_with);
+    if (Array.isArray(p.experiencing) && p.experiencing.length) setExperiencing(p.experiencing.join('\n'));
   }
 
   async function extractFromText() {
@@ -68,6 +72,8 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
     try {
       await therapistApi.seedContext(clientId, {
         client_summary: clientSummary.trim() || undefined,
+        wanted_help_with: wantedHelp.trim() || undefined,
+        experiencing: lines(experiencing),
         focus: focus.trim() || undefined,
         goals: lines(goals),
         techniques: lines(techniques),
@@ -118,6 +124,10 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
           <div>
             <label className={label}>Client-facing summary <span className="text-[#0F766E]">(the client sees this)</span></label>
             <textarea className={field} rows={2} placeholder="e.g. You and I have been working on staying present in hard conversations." value={clientSummary} onChange={(e) => setClientSummary(e.target.value)} />
+            <label className={`${label} mt-3`}>What they wanted help with <span className="text-[#0F766E]">(client sees this, in their words)</span></label>
+            <input className={field} placeholder="e.g. I want to stop thinking about work all the time." value={wantedHelp} onChange={(e) => setWantedHelp(e.target.value)} />
+            <label className={`${label} mt-3`}>What they were experiencing <span className="text-[#0F766E]">(client-facing, one per line)</span></label>
+            <textarea className={field} rows={2} placeholder={'Work stress\nDifficulty switching off\nNighttime overthinking'} value={experiencing} onChange={(e) => setExperiencing(e.target.value)} />
           </div>
 
           <div className="pt-1 border-t border-[#ECEFF3]">

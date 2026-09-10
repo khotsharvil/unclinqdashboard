@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { TherapistProfile } from '../types';
 import { PRACTICE_LOGO_PRESETS } from '../data/therapistData';
+import { api } from '../api';
+
+const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
 
 interface SettingsViewProps {
   therapistProfile?: TherapistProfile;
@@ -35,8 +38,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [email, setEmail] = useState(therapistProfile?.email || 'dr.vance@mindfulpractice.health');
   const [practiceName, setPracticeName] = useState(therapistProfile?.practiceName || 'Mindful Practice Clinic');
   const [logoUrl, setLogoUrl] = useState<string | undefined>(therapistProfile?.logoUrl);
+  const [emergencyPhone, setEmergencyPhone] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Load the therapist's real profile (for fields not carried on the prop, e.g.
+  // their emergency number). Skipped in demo — there's no backend there.
+  useEffect(() => {
+    if (DEMO) return;
+    api.get('/therapist/profile').then((r: any) => {
+      const p = r?.profile; if (!p) return;
+      if (p.emergency_phone) setEmergencyPhone(p.emergency_phone);
+      if (p.professional_title) setSpecialization(p.professional_title);
+      if (p.registration_no) setLicenseNumber(p.registration_no);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (therapistProfile) {
@@ -62,20 +80,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = () => {
-    if (onUpdateTherapistProfile && therapistProfile) {
-      onUpdateTherapistProfile({
-        ...therapistProfile,
-        name,
-        specialization,
-        licenseNumber,
-        email,
-        practiceName,
-        logoUrl,
-      });
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
+  const handleSaveProfile = async () => {
+    setSaving(true); setSaveError('');
+    // Persist to the backend (maps dashboard fields → therapist profile columns).
+    try {
+      if (!DEMO) {
+        await api.patch('/therapist/profile', {
+          name,
+          display_name: name,
+          professional_title: specialization,
+          registration_no: licenseNumber,
+          practice_name: practiceName,
+          logo_url: logoUrl,
+          emergency_phone: emergencyPhone,
+        });
+      }
+    } catch (e: any) {
+      setSaveError(e?.data?.error || 'Could not save to the server. Please try again.');
+      setSaving(false);
+      return;
     }
+    // Reflect locally too (drives header/branding without a refetch).
+    if (onUpdateTherapistProfile && therapistProfile) {
+      onUpdateTherapistProfile({ ...therapistProfile, name, specialization, licenseNumber, email, practiceName, logoUrl } as any);
+    }
+    setSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
   };
 
   return (
@@ -279,6 +310,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="w-full px-4 py-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-base font-serif text-[#10151F] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors"
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="u-eyebrow block mb-1.5">Emergency contact number</label>
+              <input
+                type="tel"
+                value={emergencyPhone}
+                onChange={(e) => setEmergencyPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full px-4 py-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-base font-serif text-[#10151F] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors"
+              />
+              <p className="text-[12px] text-[#6B7686] mt-1.5">
+                If a connected client shows signs of crisis in the app, they’ll be urged to call you at this number first, alongside national helplines. Leave blank to show helplines only.
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-[#F2F5F8]">
@@ -294,6 +338,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
 
             <div className="flex items-center space-x-3 ml-auto">
+              {saveError && (
+                <span className="text-[13px] text-[#B0332F] font-medium">{saveError}</span>
+              )}
               {saveSuccess && (
                 <span className="text-[13px] text-[#0F766E] font-medium animate-in fade-in flex items-center space-x-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -303,9 +350,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <button
                 type="button"
                 onClick={handleSaveProfile}
-                className="u-btn-primary"
+                disabled={saving}
+                className="u-btn-primary disabled:opacity-50"
               >
-                Save Profile
+                {saving ? 'Saving…' : 'Save Profile'}
               </button>
             </div>
           </div>

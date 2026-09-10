@@ -1,0 +1,15 @@
+# Explicit build/serve config so Railway serves the built dist/ (not the source
+# dir). Mirrors the client app's setup. Caddy is provided by Railway's
+# auto-detected static provider, so it is NOT listed in nixPkgs (listing it from
+# a different nixpkgs snapshot makes nix-env fail with a file conflict).
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "caddy run --config Caddyfile --adapter caddyfile 2>&1"

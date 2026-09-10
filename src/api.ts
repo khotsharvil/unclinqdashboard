@@ -2,7 +2,11 @@
 // Shares the backend with the client app: auth (OTP), invitations, and (later)
 // clients/sessions/briefings. Token is stored in localStorage('unclinq_token').
 
-const BASE = '/api';
+// API base. In production (static host, no dev proxy) this MUST be the absolute
+// backend URL, set at build time via VITE_API_URL (e.g.
+// https://unclinq-backend-production.up.railway.app/api). Falls back to the
+// relative '/api' so local dev keeps using the Vite proxy.
+const BASE: string = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export function getToken(): string | null {
   try { return localStorage.getItem('unclinq_token'); } catch { return null; }
@@ -29,8 +33,21 @@ async function request(method: string, path: string, body?: any) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
+  if (!res.ok) {
+    onUnauthorized(res.status, token, path);
+    throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
+  }
   return data;
+}
+
+// A 401 on an AUTHENTICATED request means the session expired — clear it and
+// reload so the app falls back to the login screen. Auth endpoints (bad OTP,
+// etc.) are excluded so login errors surface inline instead of reloading.
+function onUnauthorized(status: number, token: string | null, path: string) {
+  if (status === 401 && token && !path.startsWith('/auth/')) {
+    clearAuth();
+    if (typeof window !== 'undefined') window.location.reload();
+  }
 }
 
 // Multipart (image upload) — do NOT set Content-Type; the browser sets the boundary.
@@ -40,7 +57,10 @@ async function requestForm(path: string, form: FormData) {
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(BASE + path, { method: 'POST', headers, body: form });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
+  if (!res.ok) {
+    onUnauthorized(res.status, token, path);
+    throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
+  }
   return data;
 }
 

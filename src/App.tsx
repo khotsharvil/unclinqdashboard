@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_THERAPIST_PROFILE } from './data/therapistData';
 import { Client, EvidenceGroup, ActivityItem, TherapistNote, TherapistProfile, ClientInvitation, ScheduledSession } from './types';
-import { CURRENT_WEEK_DATES } from './data/calendarUtils';
+import { CURRENT_WEEK_DATES, generateInitialSessions } from './data/calendarUtils';
+import { INITIAL_CLIENTS, INITIAL_ACTIVITIES } from './data/mockData';
+import { ADDITIONAL_PRACTICE_CLIENTS } from './data/caseloadClients';
+
+// DEMO MODE — lets the dashboard run fully without a backend (shareable Vercel
+// preview while the API is offline). Gated by VITE_DEMO=1: seeds the sample
+// caseload from the mock data files and bypasses the OTP gate. Mock clients are
+// self-contained (not _real), so clicking one reads its embedded data — no fetch.
+const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
+const DEMO_CASELOAD: Client[] = DEMO ? [...INITIAL_CLIENTS, ...ADDITIONAL_PRACTICE_CLIENTS] : [];
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { ClientsView } from './components/ClientsView';
@@ -18,14 +27,15 @@ import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
-  const [authed, setAuthed] = useState<boolean>(!!getToken());
-  const [onboarded, setOnboarded] = useState<boolean>(() => getUser()?.onboarding_completed !== false);
+  const [authed, setAuthed] = useState<boolean>(DEMO || !!getToken());
+  const [onboarded, setOnboarded] = useState<boolean>(() => DEMO || getUser()?.onboarding_completed !== false);
   // Real data only — no mock seed. Empty until the backend loads the therapist's
   // actual caseload; an empty account shows honest empty states, never sample clients.
-  const [clients, setClients] = useState<Client[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  // (DEMO mode seeds the sample caseload so a backendless preview looks full.)
+  const [clients, setClients] = useState<Client[]>(DEMO_CASELOAD);
+  const [activities, setActivities] = useState<ActivityItem[]>(DEMO ? INITIAL_ACTIVITIES : []);
   const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar'>('home');
-  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>([]);
+  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>(DEMO ? generateInitialSessions(DEMO_CASELOAD) : []);
 
   // Selected client for Workspace
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -472,7 +482,7 @@ export default function App() {
 
   // Confirm onboarding status from the backend (cached login may be stale).
   useEffect(() => {
-    if (!authed) return;
+    if (DEMO || !authed) return;
     authApi.me().then((r: any) => {
       if (r?.user) {
         setOnboarded(r.user.onboarding_completed !== false);
@@ -485,7 +495,7 @@ export default function App() {
   // practice name if set, otherwise the actual Unclinq logo. (Branding only —
   // does not touch any section or tab.)
   useEffect(() => {
-    if (!authed || !onboarded) return;
+    if (DEMO || !authed || !onboarded) return;
     therapistApi.profile().then((r: any) => {
       const pr = r?.profile;
       if (!pr) return;
@@ -503,7 +513,7 @@ export default function App() {
   // clients when there are any (feeds the SAME list + tabs; nothing is restyled).
   // Mock stays as the fallback so an empty account still demos.
   useEffect(() => {
-    if (!authed || !onboarded) return;
+    if (DEMO || !authed || !onboarded) return;
     therapistApi.clients().then((r: any) => {
       const rows = r?.clients || [];
       if (!rows.length) return;
@@ -540,7 +550,6 @@ export default function App() {
         activeTab={activeWorkspaceTab}
         setActiveTab={setActiveWorkspaceTab}
         therapistProfile={therapistProfile}
-        onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenInviteClient={() => handleOpenInviteModal()}
       />
 
@@ -555,7 +564,6 @@ export default function App() {
             onNavigateToCalendar={() => setCurrentView('calendar')}
             onQuickAddNote={handleQuickAddNote}
             therapistProfile={therapistProfile}
-            onOpenOnboarding={() => setIsOnboardingOpen(true)}
             onOpenInviteClient={() => handleOpenInviteModal()}
           />
         )}
@@ -607,7 +615,6 @@ export default function App() {
           <SettingsView
             therapistProfile={therapistProfile}
             onUpdateTherapistProfile={handleSaveTherapistProfile}
-            onOpenOnboarding={() => setIsOnboardingOpen(true)}
           />
         )}
       </main>

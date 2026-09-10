@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowLeft, Upload, Check, Copy, ShieldCheck, Repeat, Mic, MessageCircle, Sparkles, FileText } from 'lucide-react';
-import { api, invitationsApi, inviteLink, getToken } from '../api';
+import { api, invitationsApi, inviteLink } from '../api';
 
 /*
  * Therapist workspace-setup onboarding (THERAPIST_ONBOARDING.md).
@@ -26,6 +26,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
     bio: '',
     specializations: '',
     logo_url: '',
+    emergency_phone: '',
   });
 
   function handleLogo(file: File) {
@@ -65,8 +66,9 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
     try {
       const fd = new FormData();
       fd.append('certificate', file);
-      const res = await fetch('/api/therapist/certificate', { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: fd });
-      if (!res.ok) throw new Error('upload failed');
+      // Go through the shared API client so it uses VITE_API_URL in production
+      // (a raw fetch('/api/...') only works behind the local dev proxy).
+      await api.postForm('/therapist/certificate', fd);
       setCertName(file.name); setCertStatus('pending');
     } catch { setError('Could not upload the certificate.'); }
     finally { setBusy(false); }
@@ -159,6 +161,10 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
               </div>
               <Field label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
               <Field label="Specializations (comma-separated)" value={form.specializations} onChange={(v) => set('specializations', v)} placeholder="Anxiety, Trauma, CBT" />
+              <div className="mt-3">
+                <Field label="Emergency contact number" value={form.emergency_phone} onChange={(v) => set('emergency_phone', v)} placeholder="+91 98765 43210" />
+                <p className="text-[11px] text-[#9AA4B2] mt-1.5">If a connected client shows signs of crisis in the app, they’ll be urged to call you at this number first, alongside national helplines. Leave blank to show helplines only.</p>
+              </div>
               <div className="mt-3">
                 <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">Short bio (optional)</label>
                 <textarea value={form.bio} onChange={(e) => set('bio', e.target.value)} rows={3} placeholder="A sentence about your practice…"

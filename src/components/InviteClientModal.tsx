@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Client, TherapistProfile, ClientInvitation, RecurrenceCadence, SessionLocation } from '../types';
 import { invitationsApi, inviteLink } from '../api';
+import { InviteRelationship, InvitePayload } from './InviteRelationship';
 import { INITIAL_THERAPIST_PROFILE } from '../data/therapistData';
 import { DAYS_OF_WEEK, TIME_SLOTS, DURATION_OPTIONS, CURRENT_WEEK_DATES } from '../data/calendarUtils';
 
@@ -90,6 +91,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [generatedLink, setGeneratedLink] = useState<string>('');
   const [inviteError, setInviteError] = useState('');
+  const [rel, setRel] = useState<InvitePayload>({ relationship_type: 'new', valid: true });
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Sync state when modal is opened or target client changes
@@ -183,6 +185,10 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !clientEmail.trim()) return;
+    if (rel.relationship_type === 'ongoing' && !rel.valid) {
+      setInviteError('For an ongoing client, add a summary, current focus, and at least one goal.');
+      return;
+    }
     setInviteError('');
 
     // Generate a REAL invitation on the backend — the code the client redeems.
@@ -193,6 +199,8 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
         expires_in_days: 7,
+        relationship_type: rel.relationship_type,
+        seed_context: rel.relationship_type === 'ongoing' ? rel.seed_context : undefined,
       });
       code = res.invitation.code;
       realLink = inviteLink(code);
@@ -343,6 +351,9 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
               />
             </div>
           </div>
+
+          {/* New vs Ongoing client — ongoing requires a little history (seeded on redeem) */}
+          <InviteRelationship onChange={setRel} />
 
           {/* Session Day, Time & Recurring Schedule */}
           <div className="p-5 rounded-xl bg-white border border-[#ECEFF3] space-y-4">
@@ -585,7 +596,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
 
             <button
               type="submit"
-              disabled={sentSuccess}
+              disabled={sentSuccess || (rel.relationship_type === 'ongoing' && !rel.valid)}
               className="u-btn-primary w-full sm:w-auto justify-center disabled:opacity-50"
             >
               <Send className="w-4 h-4 text-[#2DD4BF]" />

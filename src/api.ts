@@ -76,15 +76,36 @@ export const CLIENT_APP_URL =
   (import.meta as any).env?.VITE_CLIENT_APP_URL || 'http://localhost:5173';
 
 export const authApi = {
+  // Branch the sign-in UI new-vs-returning before sending a code.
+  emailExists: (email: string): Promise<{ exists: boolean }> => api.post('/auth/email-exists', { email }),
   sendOtp: (email: string, purpose = 'login') => api.post('/auth/send-otp', { email, purpose }),
   verifyOtp: (email: string, code: string, purpose = 'login', name?: string) =>
     api.post('/auth/verify-otp', { email, code, purpose, name, role: 'therapist' }),
   me: () => api.get('/auth/me'),
 };
 
+// History captured for an "ongoing" client at invite time (applied on redeem).
+export interface SeedContext {
+  client_summary?: string;
+  wanted_help_with?: string;
+  experiencing?: string[];
+  focus?: string;
+  goals?: string[];
+  techniques?: string[];
+  concerns?: string[];
+  risk_note?: string;
+  prior_sessions?: number;
+  started_at?: string;
+}
+
 export const invitationsApi = {
-  create: (data: { client_name?: string; client_email?: string; expires_in_days?: number }) =>
-    api.post('/invitations', data),
+  create: (data: {
+    client_name?: string;
+    client_email?: string;
+    expires_in_days?: number;
+    relationship_type?: 'new' | 'ongoing';
+    seed_context?: SeedContext;
+  }) => api.post('/invitations', data),
   list: () => api.get('/invitations'),
   revoke: (id: string) => api.post(`/invitations/${id}/revoke`),
 };

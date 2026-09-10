@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowLeft, Upload, Check, Copy, ShieldCheck, Repeat, Mic, MessageCircle, Sparkles, FileText } from 'lucide-react';
 import { api, invitationsApi, inviteLink } from '../api';
+import { InviteRelationship, InvitePayload } from './InviteRelationship';
 
 /*
  * Therapist workspace-setup onboarding (THERAPIST_ONBOARDING.md).
@@ -43,12 +44,30 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   const [invEmail, setInvEmail] = useState('');
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [rel, setRel] = useState<InvitePayload>({ relationship_type: 'new', valid: true });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const next = () => setI((n) => Math.min(n + 1, STEPS.length - 1));
   const back = () => setI((n) => Math.max(n - 1, 0));
 
+  // Required fields per step — credentials that make the profile clinically
+  // credible. (Bio, specializations, logo and emergency phone stay optional.)
+  function missingFor(currentStep: string): string | null {
+    if (currentStep === 'professional') {
+      if (!form.name.trim()) return 'Please enter your full name.';
+      if (!form.professional_title.trim()) return 'Please enter your professional title.';
+      if (!form.qualification.trim()) return 'Please enter your qualification.';
+      if (!form.registration_no.trim()) return 'Please enter your registration / certification number.';
+    }
+    if (currentStep === 'practice') {
+      if (!form.practice_name.trim()) return 'Please enter your practice / clinic name.';
+    }
+    return null;
+  }
+
   async function saveProfile(extra?: Record<string, any>) {
+    const missing = missingFor(step);
+    if (missing) { setError(missing); return; }
     setBusy(true); setError('');
     try {
       await api.patch('/therapist/profile', {
@@ -75,9 +94,19 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   }
 
   async function generateInvite() {
+    if (rel.relationship_type === 'ongoing' && !rel.valid) {
+      setError('For an ongoing client, add a summary, current focus, and at least one goal.');
+      return;
+    }
     setBusy(true); setError('');
     try {
-      const res = await invitationsApi.create({ client_name: invName.trim(), client_email: invEmail.trim(), expires_in_days: 7 });
+      const res = await invitationsApi.create({
+        client_name: invName.trim(),
+        client_email: invEmail.trim(),
+        expires_in_days: 7,
+        relationship_type: rel.relationship_type,
+        seed_context: rel.relationship_type === 'ongoing' ? rel.seed_context : undefined,
+      });
       setCode(res.invitation.code);
     } catch (e: any) { setError(e?.data?.error || 'Could not create invitation.'); }
     finally { setBusy(false); }
@@ -125,10 +154,10 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
 
           {step === 'professional' && (
             <Card eyebrow="Professional profile" title="Tell us who you are, professionally.">
-              <Field label="Full name" value={form.name} onChange={(v) => set('name', v)} placeholder="Dr. Jane Smith" />
-              <Field label="Professional title" value={form.professional_title} onChange={(v) => set('professional_title', v)} placeholder="Clinical Psychologist" />
-              <Field label="Qualification" value={form.qualification} onChange={(v) => set('qualification', v)} placeholder="M.Phil Clinical Psychology" />
-              <Field label="Registration / certification no." value={form.registration_no} onChange={(v) => set('registration_no', v)} placeholder="RCI-A-12345" />
+              <Field required label="Full name" value={form.name} onChange={(v) => set('name', v)} placeholder="Dr. Jane Smith" />
+              <Field required label="Professional title" value={form.professional_title} onChange={(v) => set('professional_title', v)} placeholder="Clinical Psychologist" />
+              <Field required label="Qualification" value={form.qualification} onChange={(v) => set('qualification', v)} placeholder="M.Phil Clinical Psychology" />
+              <Field required label="Registration / certification no." value={form.registration_no} onChange={(v) => set('registration_no', v)} placeholder="RCI-A-12345" />
             </Card>
           )}
 
@@ -159,7 +188,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 </label>
                 <p className="text-[11px] text-[#9AA4B2] mt-1.5">Upload your logo and clients + your dashboard show your brand instead of Unclinq’s.</p>
               </div>
-              <Field label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
+              <Field required label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
               <Field label="Specializations (comma-separated)" value={form.specializations} onChange={(v) => set('specializations', v)} placeholder="Anxiety, Trauma, CBT" />
               <div className="mt-3">
                 <Field label="Emergency contact number" value={form.emergency_phone} onChange={(v) => set('emergency_phone', v)} placeholder="+91 98765 43210" />
@@ -222,7 +251,8 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 <>
                   <Field label="Client name" value={invName} onChange={setInvName} placeholder="Maya Lin" />
                   <Field label="Client email" value={invEmail} onChange={setInvEmail} placeholder="client@example.com" />
-                  <p className="text-xs text-[#9AA4B2] mt-2">They create their own account with the code — you never create it for them.</p>
+                  <div className="mt-3"><InviteRelationship onChange={setRel} /></div>
+                  <p className="text-xs text-[#9AA4B2] mt-2">They create their own account with the code (we email it if you add their address) — you never create it for them.</p>
                 </>
               ) : (
                 <div className="bg-[#F1FAF9] border border-[#CCE9E6] rounded-xl p-5 text-center">
@@ -259,7 +289,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 ) : (
                   <>
                     <button onClick={next} className="u-btn-ghost"><span>Skip for now</span></button>
-                    <button onClick={generateInvite} disabled={busy || !invName.trim() || !invEmail.trim()} className="u-btn-primary"><span>Generate invitation</span><ArrowRight className="w-4 h-4" /></button>
+                    <button onClick={generateInvite} disabled={busy || !invName.trim() || !invEmail.trim() || !rel.valid} className="u-btn-primary"><span>Generate invitation</span><ArrowRight className="w-4 h-4" /></button>
                   </>
                 )
               ) : step === 'done' ? (
@@ -282,9 +312,9 @@ const Card: React.FC<{ eyebrow: string; title: string; children: React.ReactNode
     {children}
   </div>
 );
-const Field: React.FC<{ label: string; value: string; onChange: (v: string) => void; placeholder?: string }> = ({ label, value, onChange, placeholder }) => (
+const Field: React.FC<{ label: string; value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean }> = ({ label, value, onChange, placeholder, required }) => (
   <div className="mb-3">
-    <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">{label}</label>
+    <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">{label}{required && <span className="text-[#B0332F]"> *</span>}</label>
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
       className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white focus:ring-2 focus:ring-[#0D9488]/15 transition-all" />
   </div>

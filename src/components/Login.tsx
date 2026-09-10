@@ -32,7 +32,16 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
         onAuthed();
       }
     } catch (err: any) {
-      setError(err?.data?.error || err?.message || 'Something went wrong.');
+      // New email used on the Sign-in path: the backend emails a code for both
+      // login and register, but verify 404s when there's no account yet. Guide
+      // the user into sign-up instead of dead-ending — switch modes, keep the
+      // email, and have them add a name + request a fresh (register) code.
+      if (err?.status === 404 && mode === 'signin' && sent) {
+        setMode('signup'); setSent(false); setCode('');
+        setError('No workspace with that email yet — add your name and we’ll send a fresh code to create it.');
+      } else {
+        setError(err?.data?.error || err?.message || 'Something went wrong.');
+      }
     } finally { setBusy(false); }
   }
 

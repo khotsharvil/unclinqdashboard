@@ -105,7 +105,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
         client_email: invEmail.trim(),
         expires_in_days: 7,
         relationship_type: rel.relationship_type,
-        seed_context: rel.relationship_type === 'ongoing' ? rel.seed_context : undefined,
+        seed_context: rel.seed_context,
       });
       setCode(res.invitation.code);
     } catch (e: any) { setError(e?.data?.error || 'Could not create invitation.'); }

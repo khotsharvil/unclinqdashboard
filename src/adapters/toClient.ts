@@ -299,6 +299,7 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),
     evidenceStore: buildEvidenceStore(journey),
+    assessments: ov.assessments || [],
   };
 }
 

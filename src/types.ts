@@ -273,6 +273,18 @@ export interface Client {
   actions: ActionItem[];
   notes: TherapistNote[];
   evidenceStore: Record<string, EvidenceGroup>;
+  assessments?: ClientAssessment[];
+}
+
+// A test/assessment the therapist recorded (any type; freeform).
+export interface ClientAssessment {
+  id: string;
+  instrument: string;
+  score?: string | null;
+  context?: string | null;
+  taken_at?: string | null;
+  notes?: string | null;
+  created_at?: string;
 }
 
 export interface ActivityItem {

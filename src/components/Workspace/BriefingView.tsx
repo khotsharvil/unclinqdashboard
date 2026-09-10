@@ -5,6 +5,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Client, EvidenceGroup } from '../../types';
+import { AssessmentsCard } from './AssessmentsCard';
 
 interface BriefingViewProps {
   client: Client;
@@ -234,6 +235,11 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       )}
+
+      {/* Assessments — reference context (also attunes Emora + anchors the briefing) */}
+      <div className="rounded-2xl border border-[#ECEFF3] bg-white overflow-hidden">
+        <AssessmentsCard client={client} />
+      </div>
 
     </div>
   );

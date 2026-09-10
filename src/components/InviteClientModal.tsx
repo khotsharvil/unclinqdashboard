@@ -200,7 +200,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
         client_email: clientEmail.trim(),
         expires_in_days: 7,
         relationship_type: rel.relationship_type,
-        seed_context: rel.relationship_type === 'ongoing' ? rel.seed_context : undefined,
+        seed_context: rel.seed_context,
       });
       code = res.invitation.code;
       realLink = inviteLink(code);

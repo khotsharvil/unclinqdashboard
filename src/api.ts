@@ -84,6 +84,16 @@ export const authApi = {
   me: () => api.get('/auth/me'),
 };
 
+// A test/assessment the therapist recorded (any type; all freeform). `context`
+// is the therapeutic meaning — it attunes Emora and anchors the briefing.
+export interface Assessment {
+  instrument: string;
+  score?: string;
+  context?: string;
+  taken_at?: string;
+  notes?: string;
+}
+
 // History captured for an "ongoing" client at invite time (applied on redeem).
 export interface SeedContext {
   client_summary?: string;
@@ -96,6 +106,7 @@ export interface SeedContext {
   risk_note?: string;
   prior_sessions?: number;
   started_at?: string;
+  assessments?: Assessment[];
 }
 
 export const invitationsApi = {
@@ -122,6 +133,10 @@ export const therapistApi = {
 
   // Seed an existing client's history (see backend migration 010).
   seedContext: (id: string, data: any) => api.post(`/therapist/clients/${id}/context/seed`, data),
+
+  // Assessments / tests (any type; freeform).
+  assessments: (id: string) => api.get(`/therapist/clients/${id}/assessments`),
+  addAssessment: (id: string, data: Assessment) => api.post(`/therapist/clients/${id}/assessments`, data),
   extractContextText: (id: string, text: string) => api.post(`/therapist/clients/${id}/context/extract`, { text }),
   extractContextImage: (id: string, file: File) => {
     const f = new FormData(); f.append('image', file);

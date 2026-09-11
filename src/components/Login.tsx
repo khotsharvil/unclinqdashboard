@@ -9,7 +9,7 @@ import { authApi, setAuth } from '../api';
  * one goes straight to the code. A single 6-digit code is emailed either way
  * (dev: logged to the backend console). New accounts land in onboarding.
  */
-type Stage = 'email' | 'name' | 'code';
+type Stage = 'email' | 'name' | 'code' | 'totp';
 
 export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
   const [stage, setStage] = useState<Stage>('email');
@@ -19,6 +19,8 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preAuth, setPreAuth] = useState('');   // pre-auth token when 2FA is required
+  const [totp, setTotp] = useState('');
 
   // Step 1 — email: detect new vs returning, then send the right code.
   async function submitEmail(e: React.FormEvent) {
@@ -59,6 +61,7 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
     setBusy(true); setError('');
     try {
       const res = await authApi.verifyOtp(email.trim(), code.trim(), isNew ? 'register' : 'login', name.trim() || undefined);
+      if (res.totp_required) { setPreAuth(res.pre_auth_token); setStage('totp'); return; }
       setAuth(res.token, res.user);
       onAuthed();
     } catch (err: any) {
@@ -66,10 +69,29 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
     } finally { setBusy(false); }
   }
 
-  function resetToEmail() { setStage('email'); setCode(''); setError(''); }
+  // Step 4 (only if 2FA is on) — the authenticator code.
+  async function submitTotp(e: React.FormEvent) {
+    e.preventDefault();
+    if (totp.trim().length !== 6) { setError('Enter the 6-digit code from your authenticator app.'); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await authApi.twoFactorLogin(preAuth, totp.trim());
+      setAuth(res.token, res.user);
+      onAuthed();
+    } catch (err: any) {
+      setError(err?.data?.error || err?.message || 'Something went wrong.');
+    } finally { setBusy(false); }
+  }
 
-  const title = stage === 'code' ? 'Check your email' : isNew && stage === 'name' ? 'Set up your workspace' : 'Sign in or create your workspace';
-  const subtitle = stage === 'code'
+  function resetToEmail() { setStage('email'); setCode(''); setTotp(''); setPreAuth(''); setError(''); }
+
+  const title = stage === 'totp' ? 'Two-factor verification'
+    : stage === 'code' ? 'Check your email'
+    : isNew && stage === 'name' ? 'Set up your workspace'
+    : 'Sign in or create your workspace';
+  const subtitle = stage === 'totp'
+    ? 'Enter the 6-digit code from your authenticator app.'
+    : stage === 'code'
     ? `Enter the 6-digit code we sent to ${email}.`
     : stage === 'name'
     ? 'Looks like you’re new here — what should we call you?'
@@ -132,6 +154,20 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
               </button>
               <button type="button" onClick={resetToEmail} className="u-btn-ghost w-full justify-center text-xs">
                 <ArrowLeft className="w-3.5 h-3.5" /> Use a different email
+              </button>
+            </form>
+          )}
+
+          {stage === 'totp' && (
+            <form onSubmit={submitTotp} className="mt-6 space-y-3.5">
+              <input autoFocus value={totp} onChange={(e) => setTotp(e.target.value.replace(/\D/g, ''))} placeholder="••••••" maxLength={6}
+                className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-3 text-center text-xl tracking-[0.4em] font-semibold text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white" />
+              {error && <p className="text-xs text-[#B0332F]">{error}</p>}
+              <button type="submit" disabled={busy} className="u-btn-primary w-full justify-center disabled:opacity-50">
+                <span>{busy ? 'Please wait…' : 'Verify & sign in'}</span>{!busy && <ArrowRight className="w-4 h-4" />}
+              </button>
+              <button type="button" onClick={resetToEmail} className="u-btn-ghost w-full justify-center text-xs">
+                <ArrowLeft className="w-3.5 h-3.5" /> Start over
               </button>
             </form>
           )}

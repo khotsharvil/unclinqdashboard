@@ -83,6 +83,13 @@ export const authApi = {
     api.post('/auth/verify-otp', { email, code, purpose, name, role: 'therapist' }),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'), // revokes all tokens (token_version bump)
+
+  // Two-factor auth (TOTP)
+  twoFactorStatus: (): Promise<{ enabled: boolean }> => api.get('/auth/2fa/status'),
+  twoFactorSetup: (): Promise<{ otpauth_url: string; secret: string }> => api.post('/auth/2fa/setup'),
+  twoFactorActivate: (code: string) => api.post('/auth/2fa/activate', { code }),
+  twoFactorDisable: (code: string) => api.post('/auth/2fa/disable', { code }),
+  twoFactorLogin: (pre_auth_token: string, code: string) => api.post('/auth/2fa/login', { pre_auth_token, code }),
 };
 
 // A test/assessment the therapist recorded (any type; all freeform). `context`

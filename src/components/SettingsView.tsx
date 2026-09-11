@@ -10,6 +10,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { TherapistProfile } from '../types';
+import { TwoFactorCard } from './TwoFactorCard';
 import { PRACTICE_LOGO_PRESETS } from '../data/therapistData';
 import { api } from '../api';
 
@@ -181,6 +182,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Privacy & Longitudinal Model Section */}
       {activeSubTab === 'privacy' && (
         <div className="space-y-6">
+          <TwoFactorCard />
           <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl space-y-5">
             <div className="flex items-center space-x-2.5">
               <Database className="w-5 h-5 text-[#0D9488]" />

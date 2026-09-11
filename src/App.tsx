@@ -21,7 +21,7 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getToken, getUser, authApi, therapistApi, invitationsApi } from './api';
+import { getUser, authApi, therapistApi, invitationsApi } from './api';
 import { loadRealClient, toClientStub, toActivities, toScheduledSessions, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
@@ -31,7 +31,9 @@ export default function App() {
   const DEMO_ONBOARDING = DEMO && /onboarding/i.test(
     (typeof window !== 'undefined' ? window.location.hash + window.location.search : '')
   );
-  const [authed, setAuthed] = useState<boolean>(DEMO || !!getToken());
+  // Logged-in signal is the cached user object; the JWT lives in the httpOnly
+  // cookie now (#11 flip) and isn't readable from JS.
+  const [authed, setAuthed] = useState<boolean>(DEMO || !!getUser());
   const [onboarded, setOnboarded] = useState<boolean>(() => DEMO ? !DEMO_ONBOARDING : getUser()?.onboarding_completed !== false);
   // Real data only — no mock seed. Empty until the backend loads the therapist's
   // actual caseload; an empty account shows honest empty states, never sample clients.

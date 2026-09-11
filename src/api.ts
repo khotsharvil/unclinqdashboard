@@ -14,8 +14,10 @@ export function getToken(): string | null {
 export function getUser(): any {
   try { return JSON.parse(localStorage.getItem('unclinq_user') || 'null'); } catch { return null; }
 }
-export function setAuth(token: string, user: any) {
-  localStorage.setItem('unclinq_token', token);
+export function setAuth(_token: string, user: any) {
+  // #11 flip: the JWT now lives in the httpOnly cookie the backend set on the
+  // login response — never store it in localStorage (XSS can't read a cookie it
+  // can read localStorage). We keep only the user object as the logged-in flag.
   localStorage.setItem('unclinq_user', JSON.stringify(user));
 }
 export function clearAuth() {
@@ -33,8 +35,6 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 async function request(method: string, path: string, body?: any) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
   if (MUTATING.has(method.toUpperCase())) {
     const csrf = getCsrf();
     if (csrf) headers['X-CSRF-Token'] = csrf;
@@ -42,12 +42,12 @@ async function request(method: string, path: string, body?: any) {
   const res = await fetch(BASE + path, {
     method,
     headers,
-    credentials: 'include', // send the httpOnly auth cookie (#11)
+    credentials: 'include', // auth rides on the httpOnly cookie (#11)
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    onUnauthorized(res.status, token, path);
+    onUnauthorized(res.status, path);
     throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
   }
   return data;
@@ -56,8 +56,9 @@ async function request(method: string, path: string, body?: any) {
 // A 401 on an AUTHENTICATED request means the session expired — clear it and
 // reload so the app falls back to the login screen. Auth endpoints (bad OTP,
 // etc.) are excluded so login errors surface inline instead of reloading.
-function onUnauthorized(status: number, token: string | null, path: string) {
-  if (status === 401 && token && !path.startsWith('/auth/')) {
+function onUnauthorized(status: number, path: string) {
+  // "Was logged in" is now signalled by the cached user, not a JS-visible token.
+  if (status === 401 && getUser() && !path.startsWith('/auth/')) {
     clearAuth();
     if (typeof window !== 'undefined') window.location.reload();
   }
@@ -66,14 +67,12 @@ function onUnauthorized(status: number, token: string | null, path: string) {
 // Multipart (image upload) — do NOT set Content-Type; the browser sets the boundary.
 async function requestForm(path: string, form: FormData) {
   const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
   const csrf = getCsrf();
   if (csrf) headers['X-CSRF-Token'] = csrf;
   const res = await fetch(BASE + path, { method: 'POST', headers, credentials: 'include', body: form });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    onUnauthorized(res.status, token, path);
+    onUnauthorized(res.status, path);
     throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
   }
   return data;

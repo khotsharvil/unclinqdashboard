@@ -1,3 +1,9 @@
+# Disable Caddy's admin API (port 2019) so Railway never mis-detects it as the
+# web port when a custom domain is added — the only listening port is $PORT.
+{
+	admin off
+}
+
 :{$PORT} {
 	encode gzip
 	root * dist

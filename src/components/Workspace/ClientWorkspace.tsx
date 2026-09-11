@@ -8,8 +8,10 @@ import {
   Lock,
   GitCommit,
   Mail,
-  UserPlus
+  UserPlus,
+  Mic
 } from 'lucide-react';
+import { SessionRecorder } from './SessionRecorder';
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
 import { BriefingView } from './BriefingView';
@@ -40,6 +42,8 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   onSeedHistory,
 }) => {
   const [selectedSessionId, setSelectedSessionId] = React.useState<string | null>(null);
+  const [recording, setRecording] = React.useState(false);
+  const isReal = !!(client as any)._real;
 
   const handleNavigateToTab = (
     tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes', 
@@ -181,6 +185,17 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                   </span>
                 )}
 
+                {isReal && (
+                  <button
+                    onClick={() => setRecording(true)}
+                    className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg text-white font-medium transition-colors cursor-pointer"
+                    style={{ background: '#0D9488' }}
+                  >
+                    <Mic className="w-4 h-4" />
+                    Record session
+                  </button>
+                )}
+
                 {onSeedHistory && (
                   <button
                     onClick={onSeedHistory}
@@ -276,6 +291,15 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
           />
         )}
       </div>
+
+      {recording && (
+        <SessionRecorder
+          clientId={client.id}
+          clientName={client.name}
+          onClose={() => setRecording(false)}
+          onDone={() => { setActiveTab('sessions'); }}
+        />
+      )}
 
     </div>
   );

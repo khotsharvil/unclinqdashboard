@@ -128,6 +128,16 @@ export const therapistApi = {
   briefing: (id: string) => api.get(`/therapist/clients/${id}/briefing`),
   notes: (id: string) => api.get(`/therapist/clients/${id}/notes`),
   session: (sessionId: string) => api.get(`/sessions/${sessionId}`),
+  // Therapist records/uploads a session FOR a client (backend resolves client_id
+  // against an active consent link). Audio streams to transcription, never stored.
+  uploadSession: (clientId: string, file: Blob, filename = 'session.webm', occurredAt?: string) => {
+    const f = new FormData();
+    f.append('audio', file, filename);
+    f.append('client_id', clientId);
+    if (occurredAt) f.append('occurred_at', occurredAt);
+    return api.postForm('/sessions', f);
+  },
+  sessions: (clientId: string) => api.get(`/sessions?client_id=${encodeURIComponent(clientId)}`),
   addNote: (id: string, body: string) => api.post(`/therapist/clients/${id}/notes`, { body }),
   profile: () => api.get('/therapist/profile'),
 

@@ -12,6 +12,9 @@ import { InviteRelationship, InvitePayload } from './InviteRelationship';
  */
 const STEPS = ['welcome', 'professional', 'certificate', 'practice', 'how', 'privacy', 'invite', 'done'];
 
+// DEMO: no backend — fields are optional and every step just advances.
+const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
+
 export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?: string }> = ({ onDone, therapistName }) => {
   const [i, setI] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -53,6 +56,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   // Required fields per step — credentials that make the profile clinically
   // credible. (Bio, specializations, logo and emergency phone stay optional.)
   function missingFor(currentStep: string): string | null {
+    if (DEMO) return null; // demo: nothing is required
     if (currentStep === 'professional') {
       if (!form.name.trim()) return 'Please enter your full name.';
       if (!form.professional_title.trim()) return 'Please enter your professional title.';
@@ -68,6 +72,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   async function saveProfile(extra?: Record<string, any>) {
     const missing = missingFor(step);
     if (missing) { setError(missing); return; }
+    if (DEMO) { next(); return; } // demo: no backend, just advance
     setBusy(true); setError('');
     try {
       await api.patch('/therapist/profile', {
@@ -83,6 +88,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   async function uploadCert(file: File) {
     setBusy(true); setError('');
     try {
+      if (DEMO) { setCertName(file.name); setCertStatus('pending'); setBusy(false); return; }
       const fd = new FormData();
       fd.append('certificate', file);
       // Go through the shared API client so it uses VITE_API_URL in production
@@ -98,6 +104,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
       setError('For an ongoing client, add a summary, current focus, and at least one goal.');
       return;
     }
+    if (DEMO) { setCode('DEMO24'); return; } // demo: no backend, show a sample code
     setBusy(true); setError('');
     try {
       const res = await invitationsApi.create({
@@ -113,6 +120,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   }
 
   async function finish() {
+    if (DEMO) { onDone(); return; } // demo: no backend
     setBusy(true);
     try { await api.post('/auth/onboarding/complete'); } catch { /* non-fatal */ }
     onDone();

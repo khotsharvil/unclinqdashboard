@@ -27,8 +27,12 @@ import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
 
 export default function App() {
+  // Demo can deep-link to the onboarding walkthrough: add ?onboarding or #onboarding.
+  const DEMO_ONBOARDING = DEMO && /onboarding/i.test(
+    (typeof window !== 'undefined' ? window.location.hash + window.location.search : '')
+  );
   const [authed, setAuthed] = useState<boolean>(DEMO || !!getToken());
-  const [onboarded, setOnboarded] = useState<boolean>(() => DEMO || getUser()?.onboarding_completed !== false);
+  const [onboarded, setOnboarded] = useState<boolean>(() => DEMO ? !DEMO_ONBOARDING : getUser()?.onboarding_completed !== false);
   // Real data only — no mock seed. Empty until the backend loads the therapist's
   // actual caseload; an empty account shows honest empty states, never sample clients.
   // (DEMO mode seeds the sample caseload so a backendless preview looks full.)

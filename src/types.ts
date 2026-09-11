@@ -326,9 +326,11 @@ export interface ClientInvitation {
   status: 'pending' | 'accepted' | 'expired';
   sentDate: string;
   forms: string[];
-  checkInCadence: string;
+  checkInCadence?: string;
+  invitationCode?: string | null;
   customWelcomeNote?: string;
-  // Session Day, Time & Recurrence
+  // Session scheduling — deprecated (removed from the invite; kept optional
+  // for any legacy local state that still references them).
   sessionDay?: string; // e.g. "Thursday"
   sessionDate?: string; // e.g. "2026-08-27"
   sessionTime?: string; // e.g. "12:30 PM"

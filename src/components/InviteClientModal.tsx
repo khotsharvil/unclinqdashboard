@@ -50,37 +50,6 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
     currentTarget?.email || (currentTarget ? `${currentTarget.name.toLowerCase().replace(/\s+/g, '.')}@example.com` : '')
   );
 
-  // Recurring session scheduling states
-  const [sessionDay, setSessionDay] = useState<string>(
-    currentTarget?.recurringSchedule?.dayOfWeek ||
-    currentTarget?.nextSession?.dayOfWeek ||
-    (currentTarget?.nextSession?.isToday ? 'Thursday' : 'Thursday')
-  );
-  const [sessionTime, setSessionTime] = useState<string>(
-    currentTarget?.recurringSchedule?.time ||
-    currentTarget?.nextSession?.time ||
-    '10:00 AM'
-  );
-  const [sessionDuration, setSessionDuration] = useState<string>(
-    currentTarget?.recurringSchedule?.duration ||
-    currentTarget?.nextSession?.duration ||
-    activeProfile?.defaultSessionDuration ||
-    '50 min'
-  );
-  const [isRecurring, setIsRecurring] = useState<boolean>(
-    currentTarget?.recurringSchedule ? currentTarget.recurringSchedule.cadence !== 'one_time' : true
-  );
-  const [recurringCadence, setRecurringCadence] = useState<RecurrenceCadence>(
-    currentTarget?.recurringSchedule?.cadence ||
-    currentTarget?.nextSession?.cadence ||
-    'weekly'
-  );
-  const [sessionLocation, setSessionLocation] = useState<SessionLocation>(
-    currentTarget?.recurringSchedule?.location ||
-    currentTarget?.nextSession?.location ||
-    'in_person'
-  );
-
   const [welcomeMessage, setWelcomeMessage] = useState(
     `Hi ${currentTarget ? currentTarget.name.split(' ')[0] : 'there'}, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
   );
@@ -101,34 +70,15 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
         setSelectedClientId(currentTarget.id);
         setClientName(currentTarget.name);
         setClientEmail(currentTarget.email || `${currentTarget.name.toLowerCase().replace(/\s+/g, '.')}@example.com`);
-        const initialDay = currentTarget.recurringSchedule?.dayOfWeek || currentTarget.nextSession?.dayOfWeek || 'Thursday';
-        const initialTime = currentTarget.recurringSchedule?.time || currentTarget.nextSession?.time || '10:00 AM';
-        const initialDuration = currentTarget.recurringSchedule?.duration || currentTarget.nextSession?.duration || '50 min';
-        const initialCadence = currentTarget.recurringSchedule?.cadence || currentTarget.nextSession?.cadence || 'weekly';
-        const initialLocation = currentTarget.recurringSchedule?.location || currentTarget.nextSession?.location || 'in_person';
-
-        setSessionDay(initialDay);
-        setSessionTime(initialTime);
-        setSessionDuration(initialDuration);
-        setIsRecurring(initialCadence !== 'one_time');
-        setRecurringCadence(initialCadence);
-        setSessionLocation(initialLocation);
-
         setWelcomeMessage(
-          `Hi ${currentTarget.name.split(' ')[0]}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${initialDay}s at ${initialTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+          `Hi ${currentTarget.name.split(' ')[0]}, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
         );
       } else {
         setSelectedClientId('new');
         setClientName('');
         setClientEmail('');
-        setSessionDay('Thursday');
-        setSessionTime('10:00 AM');
-        setSessionDuration('50 min');
-        setIsRecurring(true);
-        setRecurringCadence('weekly');
-        setSessionLocation('in_person');
         setWelcomeMessage(
-          `Hi there, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on Thursdays at 10:00 AM — ${activeProfile?.name || 'Dr. Elena Vance'}`
+          `Hi there, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
         );
       }
     }
@@ -146,31 +96,16 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
     if (val === 'new') {
       setClientName('');
       setClientEmail('');
-      setSessionDay('Thursday');
-      setSessionTime('10:00 AM');
       setWelcomeMessage(
-        `Hi there, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on Thursdays at 10:00 AM — ${activeProfile?.name || 'Dr. Elena Vance'}`
+        `Hi there, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
       );
     } else {
       const match = allClients.find(c => c.id === val);
       if (match) {
         setClientName(match.name);
         setClientEmail(match.email || `${match.name.toLowerCase().replace(/\s+/g, '.')}@example.com`);
-        const day = match.recurringSchedule?.dayOfWeek || match.nextSession?.dayOfWeek || 'Thursday';
-        const time = match.recurringSchedule?.time || match.nextSession?.time || '10:00 AM';
-        const duration = match.recurringSchedule?.duration || match.nextSession?.duration || '50 min';
-        const cadence = match.recurringSchedule?.cadence || match.nextSession?.cadence || 'weekly';
-        const loc = match.recurringSchedule?.location || match.nextSession?.location || 'in_person';
-
-        setSessionDay(day);
-        setSessionTime(time);
-        setSessionDuration(duration);
-        setIsRecurring(cadence !== 'one_time');
-        setRecurringCadence(cadence);
-        setSessionLocation(loc);
-
         setWelcomeMessage(
-          `Hi ${match.name.split(' ')[0]}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${day}s at ${time} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+          `Hi ${match.name.split(' ')[0]}, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
         );
       }
     }
@@ -211,7 +146,6 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
       return;
     }
 
-    const sessionDate = CURRENT_WEEK_DATES[sessionDay]?.date || '2026-08-27';
     onSendInvitation({
       id: `inv-${Date.now()}`,
       clientId: selectedClientId !== 'new' ? selectedClientId : undefined,
@@ -224,15 +158,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
       status: 'pending',
       sentDate: 'Today',
       forms: ['Initial Intake & Goals Questionnaire', 'HIPAA Informed Consent & Telehealth Agreement', 'Longitudinal Check-in Companion (Emora)'],
-      checkInCadence: isRecurring ? (recurringCadence === 'biweekly' ? 'Bi-weekly' : 'Weekly') : 'One-time',
       customWelcomeNote: welcomeMessage,
-      sessionDay,
-      sessionDate,
-      sessionTime,
-      duration: sessionDuration,
-      isRecurring,
-      recurringCadence: isRecurring ? recurringCadence : 'one_time',
-      location: sessionLocation,
     } as ClientInvitation);
 
     setSentSuccess(true); // stays open so the therapist can copy the code
@@ -355,163 +281,6 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
           {/* New vs Ongoing client — ongoing requires a little history (seeded on redeem) */}
           <InviteRelationship onChange={setRel} />
 
-          {/* Scheduling removed from the invite — it wasn't persisted, and session
-              timing is handled elsewhere (next_session_at). Collapsed out. */}
-          {false && (
-          <div className="p-5 rounded-xl bg-white border border-[#ECEFF3] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#F2F5F8] pb-3">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-[#0D9488]" />
-                <span className="u-eyebrow">
-                  Session Schedule & Recurrence
-                </span>
-              </div>
-              <span className="u-chip u-chip-accent text-[11px]">
-                {isRecurring ? 'Recurring Slot' : 'Single Session'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {/* Day */}
-              <div>
-                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
-                  Session Day
-                </label>
-                <select
-                  value={sessionDay}
-                  onChange={(e) => {
-                    const newDay = e.target.value;
-                    setSessionDay(newDay);
-                    setWelcomeMessage(
-                      `Hi ${clientName ? clientName.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${newDay}s at ${sessionTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
-                    );
-                  }}
-                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d} value={d}>
-                      {d} ({CURRENT_WEEK_DATES[d]?.display || d})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Time */}
-              <div>
-                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
-                  Start Time
-                </label>
-                <select
-                  value={sessionTime}
-                  onChange={(e) => {
-                    const newTime = e.target.value;
-                    setSessionTime(newTime);
-                    setWelcomeMessage(
-                      `Hi ${clientName ? clientName.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${sessionDay}s at ${newTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
-                    );
-                  }}
-                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
-                >
-                  {TIME_SLOTS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Duration */}
-              <div>
-                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
-                  Duration
-                </label>
-                <select
-                  value={sessionDuration}
-                  onChange={(e) => setSessionDuration(e.target.value)}
-                  className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs sm:text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
-                >
-                  {DURATION_OPTIONS.map((dur) => (
-                    <option key={dur} value={dur}>{dur}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Recurrence & Location row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-              {/* Recurrence Setting */}
-              <div className="space-y-1.5">
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#0D9488] border-[#ECEFF3] focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-[13px] font-medium text-[#3A4453] flex items-center gap-1.5">
-                    <Repeat className="w-3.5 h-3.5 text-[#0D9488]" />
-                    Recurring clinical schedule
-                  </span>
-                </label>
-
-                {isRecurring && (
-                  <select
-                    value={recurringCadence}
-                    onChange={(e) => setRecurringCadence(e.target.value as RecurrenceCadence)}
-                    className="w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-xs text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors cursor-pointer"
-                  >
-                    <option value="weekly">Weekly (Every {sessionDay})</option>
-                    <option value="biweekly">Bi-weekly (Every 2 weeks on {sessionDay})</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                )}
-              </div>
-
-              {/* Modality / Location */}
-              <div>
-                <label className="block text-[13px] font-medium text-[#3A4453] mb-1">
-                  Session Modality
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSessionLocation('in_person')}
-                    className={`px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 border cursor-pointer transition-colors ${
-                      sessionLocation === 'in_person'
-                        ? 'bg-[#F1FAF9] border-[#0D9488] text-[#0F766E]'
-                        : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:border-[#DCE2EA]'
-                    }`}
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>In-Person</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSessionLocation('telehealth')}
-                    className={`px-3 py-2.5 rounded-lg text-xs font-medium flex items-center justify-center space-x-1.5 border cursor-pointer transition-colors ${
-                      sessionLocation === 'telehealth'
-                        ? 'bg-[#F1FAF9] border-[#0D9488] text-[#0F766E]'
-                        : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:border-[#DCE2EA]'
-                    }`}
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Telehealth</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Schedule summary helper */}
-            <div className="px-3.5 py-2.5 rounded-lg bg-[#F7F9FB] border border-[#ECEFF3] flex items-center justify-between text-xs">
-              <span className="text-[#6B7686] flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[#0D9488]" />
-                Scheduled: <span className="font-mono text-[#10151F]">{sessionDay}s at {sessionTime} ({sessionDuration})</span>
-              </span>
-              <span className="text-[#0F766E] font-medium">
-                {isRecurring ? `Recurring ${recurringCadence}` : 'One-time session'}
-              </span>
-            </div>
-          </div>
-          )}
 
           {/* Welcome Message */}
           <div className="space-y-1.5">

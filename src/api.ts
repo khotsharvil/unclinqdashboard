@@ -82,6 +82,7 @@ export const authApi = {
   verifyOtp: (email: string, code: string, purpose = 'login', name?: string) =>
     api.post('/auth/verify-otp', { email, code, purpose, name, role: 'therapist' }),
   me: () => api.get('/auth/me'),
+  logout: () => api.post('/auth/logout'), // revokes all tokens (token_version bump)
 };
 
 // A test/assessment the therapist recorded (any type; all freeform). `context`

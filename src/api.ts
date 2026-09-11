@@ -23,13 +23,26 @@ export function clearAuth() {
   localStorage.removeItem('unclinq_user');
 }
 
+// Read the readable (non-httpOnly) CSRF cookie the backend sets on login (#11).
+function getCsrf(): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(/(?:^|;\s*)uc_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
 async function request(method: string, path: string, body?: any) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (MUTATING.has(method.toUpperCase())) {
+    const csrf = getCsrf();
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+  }
   const res = await fetch(BASE + path, {
     method,
     headers,
+    credentials: 'include', // send the httpOnly auth cookie (#11)
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -55,7 +68,9 @@ async function requestForm(path: string, form: FormData) {
   const headers: Record<string, string> = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(BASE + path, { method: 'POST', headers, body: form });
+  const csrf = getCsrf();
+  if (csrf) headers['X-CSRF-Token'] = csrf;
+  const res = await fetch(BASE + path, { method: 'POST', headers, credentials: 'include', body: form });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     onUnauthorized(res.status, token, path);

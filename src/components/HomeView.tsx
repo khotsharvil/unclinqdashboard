@@ -119,15 +119,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
-            {onNavigateToCalendar && (
-              <button
-                onClick={onNavigateToCalendar}
-                className="text-[13px] font-medium text-[#6B7686] hover:text-[#0F766E] flex items-center gap-1.5 transition-colors cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-[#F1FAF9]"
-              >
-                <Calendar className="w-4 h-4" />
-                <span>Calendar</span>
-              </button>
-            )}
+            {/* Calendar hidden for MVP */}
 
             <button
               onClick={onNavigateToClients}

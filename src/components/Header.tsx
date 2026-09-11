@@ -177,10 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Clients</span>
             </button>
 
-            <button id="nav-calendar-btn" onClick={() => setCurrentView('calendar')} className={navItem(currentView === 'calendar')}>
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">Calendar</span>
-            </button>
+            {/* Calendar hidden for MVP — scheduling isn't persisted; focus on Clients + Briefings. */}
 
             {/* Quick Client Search */}
             <div className="relative">

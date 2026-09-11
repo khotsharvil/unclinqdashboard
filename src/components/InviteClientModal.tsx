@@ -82,7 +82,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   );
 
   const [welcomeMessage, setWelcomeMessage] = useState(
-    `Hi ${currentTarget ? currentTarget.name.split(' ')[0] : 'there'}, I've set up your secure portal for our sessions at ${activeProfile?.practiceName || 'Mindful Practice Clinic'}. You can log reflections, complete between-session exercises, and prepare for our meetings. Looking forward to our regular sessions on ${sessionDay}s at ${sessionTime} — ${activeProfile?.name || 'Dr. Elena Vance'}`
+    `Hi ${currentTarget ? currentTarget.name.split(' ')[0] : 'there'}, I've set up your secure Unclinq space${activeProfile?.practiceName ? ` at ${activeProfile.practiceName}` : ''}. You can log reflections, try between-session exercises, and prepare for our sessions here. — ${activeProfile?.name || 'Your therapist'}`
   );
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -355,7 +355,9 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
           {/* New vs Ongoing client — ongoing requires a little history (seeded on redeem) */}
           <InviteRelationship onChange={setRel} />
 
-          {/* Session Day, Time & Recurring Schedule */}
+          {/* Scheduling removed from the invite — it wasn't persisted, and session
+              timing is handled elsewhere (next_session_at). Collapsed out. */}
+          {false && (
           <div className="p-5 rounded-xl bg-white border border-[#ECEFF3] space-y-4">
             <div className="flex items-center justify-between border-b border-[#F2F5F8] pb-3">
               <div className="flex items-center space-x-2">
@@ -509,6 +511,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
               </span>
             </div>
           </div>
+          )}
 
           {/* Welcome Message */}
           <div className="space-y-1.5">

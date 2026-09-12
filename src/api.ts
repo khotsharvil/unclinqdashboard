@@ -8,6 +8,10 @@
 // relative '/api' so local dev keeps using the Vite proxy.
 const BASE: string = (import.meta as any).env?.VITE_API_URL || '/api';
 
+// Public legal pages served by the backend at /legal/<slug>.
+export const LEGAL_BASE = BASE.replace(/\/api\/?$/, '') + '/legal';
+export const legalUrl = (slug: string) => `${LEGAL_BASE}/${slug}`;
+
 export function getToken(): string | null {
   try { return localStorage.getItem('unclinq_token'); } catch { return null; }
 }
@@ -95,6 +99,7 @@ export const authApi = {
   sendOtp: (email: string, purpose = 'login') => api.post('/auth/send-otp', { email, purpose }),
   verifyOtp: (email: string, code: string, purpose = 'login', name?: string) =>
     api.post('/auth/verify-otp', { email, code, purpose, name, role: 'therapist' }),
+  recordConsent: (payload: any) => api.post('/auth/consent', payload),
   me: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'), // revokes all tokens (token_version bump)
 

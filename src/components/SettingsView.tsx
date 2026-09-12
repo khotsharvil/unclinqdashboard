@@ -12,7 +12,7 @@ import {
 import { TherapistProfile } from '../types';
 import { TwoFactorCard } from './TwoFactorCard';
 import { PRACTICE_LOGO_PRESETS } from '../data/therapistData';
-import { api } from '../api';
+import { api, legalUrl } from '../api';
 
 const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
 
@@ -183,6 +183,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {activeSubTab === 'privacy' && (
         <div className="space-y-6">
           <TwoFactorCard />
+          <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl">
+            <h2 className="text-lg font-serif font-semibold text-[#10151F] mb-1">Legal &amp; data</h2>
+            <p className="text-sm text-[#6B7686] mb-3">Client content is encrypted at rest. Review the documents anytime.</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <a href={legalUrl('terms-therapist')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Therapist Terms &amp; DPA</a>
+              <a href={legalUrl('privacy')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Privacy Policy</a>
+              <a href={legalUrl('disclaimer')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Medical &amp; Crisis</a>
+            </div>
+          </div>
           <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl space-y-5">
             <div className="flex items-center space-x-2.5">
               <Database className="w-5 h-5 text-[#0D9488]" />

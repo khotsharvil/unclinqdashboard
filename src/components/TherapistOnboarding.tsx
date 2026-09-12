@@ -50,7 +50,6 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   const [rel, setRel] = useState<InvitePayload>({ relationship_type: 'new', valid: true });
 
   // Consent (recorded server-side before the therapist can proceed).
-  const [confirmQualified, setConfirmQualified] = useState(false);
   const [agreeDpa, setAgreeDpa] = useState(false);
   const [confirmClientConsent, setConfirmClientConsent] = useState(false);
 
@@ -256,16 +255,12 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
               <Principle title="Encrypted & clinician-led" body="Client content is encrypted at rest. Unclinq supports your workflow; it never replaces your clinical judgment." />
               <div className="mt-4 space-y-3 rounded-xl border border-[#E7EDF3] bg-[#FBFDFE] p-4">
                 <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={confirmQualified} onChange={(e) => setConfirmQualified(e.target.checked)} className="mt-1" />
-                  <span className="text-xs" style={{ color: '#33404F' }}>I am a <b>qualified, practising mental-health professional</b> and my details are true.</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer">
                   <input type="checkbox" checked={agreeDpa} onChange={(e) => setAgreeDpa(e.target.checked)} className="mt-1" />
-                  <span className="text-xs" style={{ color: '#33404F' }}>I agree to the <a href={legalUrl('terms-therapist')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Therapist Terms &amp; Data Processing Agreement</a> and the <a href={legalUrl('privacy')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Privacy Policy</a>.</span>
+                  <span className="text-xs leading-relaxed" style={{ color: '#33404F' }}>I'm a qualified practising professional, and I agree to the <a href={legalUrl('terms-therapist')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Terms &amp; DPA</a> and <a href={legalUrl('privacy')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Privacy Policy</a>.</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input type="checkbox" checked={confirmClientConsent} onChange={(e) => setConfirmClientConsent(e.target.checked)} className="mt-1" />
-                  <span className="text-xs" style={{ color: '#33404F' }}>I have my clients' <b>informed consent</b> to use Unclinq for their care, and I remain clinically responsible.</span>
+                  <span className="text-xs leading-relaxed" style={{ color: '#33404F' }}>I have my clients' consent to use Unclinq, and I stay clinically responsible.</span>
                 </label>
               </div>
             </Card>
@@ -322,7 +317,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 <button
                   onClick={async () => {
                     setError('');
-                    if (!(confirmQualified && agreeDpa && confirmClientConsent)) { setError('Please confirm all three to continue.'); return; }
+                    if (!(agreeDpa && confirmClientConsent)) { setError('Please tick both to continue.'); return; }
                     setBusy(true);
                     try {
                       await api.post('/auth/consent', { age_confirmed: true, accepted: [{ doc: 'terms_therapist' }, { doc: 'privacy' }, { doc: 'data_processing' }] });
@@ -330,7 +325,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                     } catch (e: any) { setError(e?.data?.error || 'Could not save your consent. Please try again.'); }
                     finally { setBusy(false); }
                   }}
-                  disabled={busy || !confirmQualified || !agreeDpa || !confirmClientConsent}
+                  disabled={busy || !agreeDpa || !confirmClientConsent}
                   className="u-btn-primary"><span>Agree &amp; continue</span><ArrowRight className="w-4 h-4" /></button>
               ) : step === 'done' ? (
                 <button onClick={finish} disabled={busy} className="u-btn-primary"><span>Go to my dashboard</span><ArrowRight className="w-4 h-4" /></button>

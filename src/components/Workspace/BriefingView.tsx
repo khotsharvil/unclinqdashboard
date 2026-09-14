@@ -2,10 +2,93 @@ import React, { useState } from 'react';
 import {
   ArrowRight,
   ChevronRight,
+  ThumbsUp,
+  ThumbsDown,
   Zap,
 } from 'lucide-react';
 import { Client, EvidenceGroup } from '../../types';
 import { AssessmentsCard } from './AssessmentsCard';
+import { therapistApi } from '../../api';
+
+/* Pilot metric B — one optional tap: did this briefing help you prepare?
+   Free-text is only asked after 👎. A failed tap is swallowed so it can never
+   disrupt session prep. Renders only for real (backend) briefings. */
+const BriefingUsefulness: React.FC<{
+  clientId: string;
+  briefingId: string;
+  initial?: { useful: boolean; note?: string | null } | null;
+}> = ({ clientId, briefingId, initial }) => {
+  const [useful, setUseful] = useState<boolean | null>(initial ? initial.useful : null);
+  const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState(initial?.note || '');
+  const [noteSaved, setNoteSaved] = useState(!!initial?.note);
+
+  const send = async (u: boolean, n?: string) => {
+    try {
+      await therapistApi.briefingFeedback(clientId, { briefing_id: briefingId, useful: u, note: n });
+      if (typeof n === 'string' && n.trim()) setNoteSaved(true);
+    } catch { /* non-blocking */ }
+  };
+
+  const pick = (u: boolean) => {
+    setUseful(u);
+    setShowNote(!u); // reveal the optional "what was missing?" only after 👎
+    send(u);
+  };
+
+  const btn = (active: boolean) =>
+    `p-2 rounded-lg border transition-colors cursor-pointer ${
+      active ? 'bg-[#10151F] text-white border-[#10151F]' : 'text-[#6B7686] border-[#E3E8EE] hover:bg-[#F4F6F9]'
+    }`;
+
+  return (
+    <div className="rounded-2xl border border-[#ECEFF3] bg-[#FCFDFE] px-6 py-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span className="text-[13px] text-[#6B7686]">Was this useful to prepare?</span>
+        <div className="flex items-center gap-2">
+          <button aria-label="Useful" className={btn(useful === true)} onClick={() => pick(true)}>
+            <ThumbsUp className="w-4 h-4" />
+          </button>
+          <button aria-label="Not useful" className={btn(useful === false)} onClick={() => pick(false)}>
+            <ThumbsDown className="w-4 h-4" />
+          </button>
+        </div>
+        {useful !== null && !showNote && (
+          <span className="text-[12px] text-[#9AA4B2]">Thanks — noted.</span>
+        )}
+      </div>
+
+      {showNote && (
+        <div className="mt-3">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What was missing? (optional)"
+            rows={2}
+            className="w-full text-[14px] rounded-lg border border-[#E3E8EE] px-3 py-2 focus:outline-none focus:border-[#0D9488] resize-none"
+          />
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              onClick={() => { send(false, note); setShowNote(false); }}
+              className="text-[13px] font-medium text-white bg-[#0D9488] hover:bg-[#0F766E] rounded-lg px-3 py-1.5 cursor-pointer transition-colors"
+            >
+              Send
+            </button>
+            <button
+              onClick={() => setShowNote(false)}
+              className="text-[13px] text-[#9AA4B2] hover:text-[#6B7686] cursor-pointer"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+      {noteSaved && !showNote && (
+        <p className="mt-2 text-[12px] text-[#9AA4B2]">Feedback saved — thank you.</p>
+      )}
+    </div>
+  );
+};
 
 interface BriefingViewProps {
   client: Client;
@@ -234,6 +317,16 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
           <span>Read full briefing</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
+      )}
+
+      {/* Pilot metric B — usefulness tap. Only for real (backend) briefings. */}
+      {client.briefingId && (
+        <BriefingUsefulness
+          key={client.briefingId}
+          clientId={client.id}
+          briefingId={client.briefingId}
+          initial={client.briefingFeedback}
+        />
       )}
 
       {/* Assessments — reference context (also attunes Emora + anchors the briefing) */}

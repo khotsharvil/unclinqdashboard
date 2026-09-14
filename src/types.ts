@@ -267,6 +267,9 @@ export interface Client {
     worthExploring: string;
   };
   briefing: BriefingData;
+  // Pilot metric B: the real backend briefing id + this therapist's rating of it.
+  briefingId?: string;
+  briefingFeedback?: { useful: boolean; note?: string | null } | null;
   journeyPatterns: JourneyPattern[];
   therapyJourneys?: TherapyJourneyTrack[];
   sessions: SessionRecord[];

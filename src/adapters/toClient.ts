@@ -294,6 +294,8 @@ export async function loadRealClient(clientId: string): Promise<Client> {
       ? { display: fmtDate(ov.latest_session.occurred_at), date: String(ov.latest_session.occurred_at).slice(0, 10) }
       : null,
     briefing: toBriefing(briefing, journey, latestDate),
+    briefingId: br.briefing?.id,
+    briefingFeedback: br.briefing?.feedback ?? null,
     journeyPatterns: toPatterns(journey),
     sessions: await buildSessions(journey),
     actions: toActions(ov.exercises),

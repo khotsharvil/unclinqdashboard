@@ -153,6 +153,9 @@ export const therapistApi = {
   overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),
   journey: (id: string) => api.get(`/therapist/clients/${id}/journey`),
   briefing: (id: string) => api.get(`/therapist/clients/${id}/briefing`),
+  // Pilot metric B — one-tap "did this briefing help you prepare?" (note only after 👎).
+  briefingFeedback: (id: string, body: { briefing_id: string; useful: boolean; note?: string }) =>
+    api.post(`/therapist/clients/${id}/briefing/feedback`, body),
   notes: (id: string) => api.get(`/therapist/clients/${id}/notes`),
   session: (sessionId: string) => api.get(`/sessions/${sessionId}`),
   // Therapist records/uploads a session FOR a client (backend resolves client_id

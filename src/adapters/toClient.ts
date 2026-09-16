@@ -107,6 +107,14 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   if (s.engagement?.direction === 'quieter') explore.push('Quieter than their recent baseline — may be worth gently exploring.');
   if (s.engagement?.assigned_not_started > 0) explore.push('An assigned action hasn’t been picked up yet.');
   if (s.wants_to_discuss) explore.push(s.wants_to_discuss);
+  // Fallbacks so this is never empty when there's real material — surface the
+  // pattern / recurrence / theme the therapist might open up in-session.
+  if (explore.length === 0) {
+    if (s.recurrence_count > 1) explore.push(`This has come up ${s.recurrence_count} times${s.recurrence_of ? ` (${s.recurrence_of})` : ''} — worth exploring what keeps bringing it back.`);
+    if (s.pattern) explore.push(`The pattern: ${s.pattern}`);
+    if (s.reflection) explore.push(`Their own words: “${s.reflection}” — worth gently unpacking.`);
+    if (explore.length === 0 && s.main_trigger) explore.push(`Around ${s.main_trigger}.`);
+  }
   b.worthExploring = explore;
   b.context = { previousSessionDate: latestSessionDate, keyPoints: (journey?.goals || []).slice(0, 4), previousSessionId: '' };
   return b;

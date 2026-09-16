@@ -36,27 +36,34 @@ const BriefingUsefulness: React.FC<{
     send(u);
   };
 
-  const btn = (active: boolean) =>
-    `p-2 rounded-lg border transition-colors cursor-pointer ${
-      active ? 'bg-[#10151F] text-white border-[#10151F]' : 'text-[#6B7686] border-[#E3E8EE] hover:bg-[#F4F6F9]'
+  const btn = (active: boolean, kind: 'up' | 'down') =>
+    `flex items-center justify-center w-11 h-11 rounded-xl border-2 transition-all cursor-pointer ${
+      active
+        ? (kind === 'up'
+            ? 'bg-[#0D9488] text-white border-[#0D9488] shadow-sm scale-105'
+            : 'bg-[#B45309] text-white border-[#B45309] shadow-sm scale-105')
+        : 'text-[#3A4453] bg-white border-[#DCE6E6] hover:border-[#0D9488] hover:bg-[#F1FAF9] hover:scale-105'
     }`;
 
   return (
-    <div className="rounded-2xl border border-[#ECEFF3] bg-[#FCFDFE] px-6 py-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-[13px] text-[#6B7686]">Was this useful to prepare?</span>
-        <div className="flex items-center gap-2">
-          <button aria-label="Useful" className={btn(useful === true)} onClick={() => pick(true)}>
-            <ThumbsUp className="w-4 h-4" />
+    <div className="rounded-2xl border-2 border-[#CDEBE4] bg-gradient-to-br from-[#F1FAF9] to-[#FAFBFC] px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div>
+          <p className="text-[15px] font-semibold text-[#10151F]">Was this briefing useful to prepare?</p>
+          <p className="text-[12px] text-[#6B7686] mt-0.5">Your quick answer helps Unclinq make every briefing sharper.</p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button aria-label="Useful" title="Useful" className={btn(useful === true, 'up')} onClick={() => pick(true)}>
+            <ThumbsUp className="w-5 h-5" />
           </button>
-          <button aria-label="Not useful" className={btn(useful === false)} onClick={() => pick(false)}>
-            <ThumbsDown className="w-4 h-4" />
+          <button aria-label="Not useful" title="Not useful" className={btn(useful === false, 'down')} onClick={() => pick(false)}>
+            <ThumbsDown className="w-5 h-5" />
           </button>
         </div>
-        {useful !== null && !showNote && (
-          <span className="text-[12px] text-[#9AA4B2]">Thanks — noted.</span>
-        )}
       </div>
+      {useful !== null && !showNote && (
+        <p className="text-[13px] font-medium text-[#0F766E] mt-3 flex items-center gap-1.5"><span>✓</span> Thanks — noted.</p>
+      )}
 
       {showNote && (
         <div className="mt-3">
@@ -196,11 +203,20 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
               onClick={() => handleOpenEvidenceGroup(briefing.whatChanged.evidenceGroupId, 'Evidence summary')}
               className="mt-3 text-[13px] text-[#9AA4B2] hover:text-[#0F766E] transition-colors cursor-pointer"
             >
-              <span className="font-mono tabular-nums text-[#6B7686]">{briefing.whatChanged.mentionsCount}</span> mentions
-              <span className="mx-1.5 text-[#DDE2E9]">·</span>
-              <span className="font-mono tabular-nums text-[#6B7686]">{briefing.whatChanged.journalCount}</span> journals
-              <span className="mx-1.5 text-[#DDE2E9]">·</span>
-              <span className="font-mono tabular-nums text-[#6B7686]">{briefing.whatChanged.conversationsCount}</span> check-ins
+              {(() => {
+                const wc = briefing.whatChanged as any;
+                const total = wc.momentCount ?? 0;
+                const parts: string[] = [];
+                if (wc.mentionsCount) parts.push(`${wc.mentionsCount} from Emora`);
+                if (wc.journalCount) parts.push(`${wc.journalCount} note${wc.journalCount === 1 ? '' : 's'}`);
+                if (wc.conversationsCount) parts.push(`${wc.conversationsCount} check-in${wc.conversationsCount === 1 ? '' : 's'}`);
+                return (
+                  <>
+                    <span className="font-mono tabular-nums text-[#6B7686]">{total}</span> moment{total === 1 ? '' : 's'} captured
+                    {parts.length > 0 && <span className="text-[#9AA4B2]"> · {parts.join(' · ')}</span>}
+                  </>
+                );
+              })()}
             </button>
           </Point>
 

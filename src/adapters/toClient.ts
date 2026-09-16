@@ -77,13 +77,19 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     (s.key_event?.trigger ? `Came up: ${s.key_event.trigger}.` : '') ||
     (s.reflection ? `In their words: “${s.reflection}”.` : '') ||
     'Some between-session activity was captured.';
+  // Accurate per-source capture counts (no double-counting). by_source is a map
+  // like { emora: 2, journal: 1, voice: 1 }; fall back to the total event count.
+  const bySource = s.sources?.by_source || {};
   b.whatChanged = {
     text: changedText,
-    mentionsCount: s.sources?.events || s.event_count || 0,
-    journalCount: s.sources?.events || 0,
+    // Repurpose the three count slots as: Emora chats · journal/voice notes · check-ins(reflections).
+    mentionsCount: bySource.emora || 0,
+    journalCount: (bySource.journal || 0) + (bySource.voice || 0),
     conversationsCount: s.sources?.reflections || 0,
+    momentCount: s.sources?.events || s.event_count || 0,
+    bySource,
     evidenceGroupId: 'ev-changed',
-  };
+  } as any;
   // "Wants to discuss" prefers an explicit prepare-reflection; otherwise surface the
   // client's own verbatim words from the moment (better than an empty quote).
   b.clientWantsToDiscuss = {
@@ -107,13 +113,20 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   if (s.engagement?.direction === 'quieter') explore.push('Quieter than their recent baseline — may be worth gently exploring.');
   if (s.engagement?.assigned_not_started > 0) explore.push('An assigned action hasn’t been picked up yet.');
   if (s.wants_to_discuss) explore.push(s.wants_to_discuss);
-  // Fallbacks so this is never empty when there's real material — surface the
-  // pattern / recurrence / theme the therapist might open up in-session.
+  // Fallbacks so this is never empty — but as genuine, gentle EXPLORATION PROMPTS,
+  // NOT a copy of the observed pattern (§04) or the quote (§02). Kept short and
+  // phrased as an opening the therapist might take in-session.
   if (explore.length === 0) {
-    if (s.recurrence_count > 1) explore.push(`This has come up ${s.recurrence_count} times${s.recurrence_of ? ` (${s.recurrence_of})` : ''} — worth exploring what keeps bringing it back.`);
-    if (s.pattern) explore.push(`The pattern: ${s.pattern}`);
-    if (s.reflection) explore.push(`Their own words: “${s.reflection}” — worth gently unpacking.`);
-    if (explore.length === 0 && s.main_trigger) explore.push(`Around ${s.main_trigger}.`);
+    const shortTrigger = (t: any) => { const x = String(t || '').split(/[;→]/)[0].trim(); return x.length > 64 ? x.slice(0, 64) + '…' : x; };
+    if (s.recurrence_count > 1) {
+      explore.push(`This has recurred ${s.recurrence_count} times — worth exploring what keeps bringing it back.`);
+    } else if (s.recurrence_of) {
+      explore.push(`Worth exploring what sits underneath “${shortTrigger(s.recurrence_of)}”.`);
+    } else if (s.main_trigger) {
+      explore.push(`Worth exploring what makes “${shortTrigger(s.main_trigger)}” land so hard.`);
+    } else if (s.reflection) {
+      explore.push('Worth gently unpacking what they shared this week.');
+    }
   }
   b.worthExploring = explore;
   b.context = { previousSessionDate: latestSessionDate, keyPoints: (journey?.goals || []).slice(0, 4), previousSessionId: '' };

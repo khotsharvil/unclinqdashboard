@@ -13,6 +13,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Client, TherapistProfile } from '../types';
+import { InstallAppButton } from './InstallAppButton';
 
 interface HeaderProps {
   currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar';
@@ -237,6 +238,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </div>
+
+            {/* Install as app (Add to home screen) */}
+            <InstallAppButton />
 
             {/* Invite Client */}
             {onOpenInviteClient && (

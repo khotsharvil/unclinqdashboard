@@ -68,14 +68,29 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     return b;
   }
   const s = structured;
+  // Lead with a plain-language statement of the week's main development — NEVER a
+  // bare intensity number. Intensity is shown as a secondary metric below.
+  const changedText =
+    s.current_focus ||
+    (s.main_trigger ? `Main theme: ${s.main_trigger}.` : '') ||
+    s.pattern ||
+    (s.key_event?.trigger ? `Came up: ${s.key_event.trigger}.` : '') ||
+    (s.reflection ? `In their words: “${s.reflection}”.` : '') ||
+    'Some between-session activity was captured.';
   b.whatChanged = {
-    text: s.intensity_trend ? `Intensity ${s.intensity_trend}.` : (s.main_trigger ? `Mostly around ${s.main_trigger}.` : 'Some between-session activity was captured.'),
+    text: changedText,
     mentionsCount: s.sources?.events || s.event_count || 0,
     journalCount: s.sources?.events || 0,
     conversationsCount: s.sources?.reflections || 0,
     evidenceGroupId: 'ev-changed',
   };
-  b.clientWantsToDiscuss = { quote: s.wants_to_discuss || '', context: s.why_flagged || '', conversationEvidenceId: 'ev-discuss' };
+  // "Wants to discuss" prefers an explicit prepare-reflection; otherwise surface the
+  // client's own verbatim words from the moment (better than an empty quote).
+  b.clientWantsToDiscuss = {
+    quote: s.wants_to_discuss || s.reflection || s.key_event?.trigger || '',
+    context: s.why_flagged || (s.wants_to_discuss ? '' : (s.reflection ? 'From what they shared with Emora' : '')),
+    conversationEvidenceId: 'ev-discuss',
+  };
   if (s.technique_application) {
     b.whatTheyTried = [{ id: 'tech', name: s.technique_application, attempted: 1, completed: 0, clientResponse: '', status: 'mixed' }];
   }
@@ -112,7 +127,7 @@ function buildEvidenceStore(journey: any): Record<string, any> {
   }
   for (const m of journey?.significant_moments || []) {
     if (!m.id) continue;
-    byId[m.id] = { id: m.id, date: fmtDate(m.at), source: 'Journal', snippet: m.reflection || m.trigger || 'A significant moment', context: m.share_reason || undefined };
+    byId[m.id] = { id: m.id, date: fmtDate(m.at), source: SRC[m.source] || byId[m.id]?.source || 'Check-in', snippet: m.reflection || m.trigger || 'A significant moment', context: m.share_reason || undefined };
   }
   const item = (r: any) => byId[r.id] || { id: r.id || Math.random().toString(36).slice(2), date: fmtDate(r.at), source: 'Check-in' as const, snippet: r.trigger || 'A logged moment' };
   const group = (id: string, title: string, refs: any[]) => ({ id, title, items: (refs || []).map(item) });

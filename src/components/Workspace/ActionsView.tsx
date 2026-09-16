@@ -19,13 +19,13 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
   const [frequency, setFrequency] = useState('Daily');
   const [recentlyAssigned, setRecentlyAssigned] = useState(false);
 
-  const quickPresets = [
-    { title: 'Practice thought reframing when closing work laptop', frequency: 'Daily on workdays' },
-    { title: 'Three deep calming breaths upon ending the workday', frequency: 'Daily' },
-    { title: 'Put phone on silent after 10:00 PM and keep in another room', frequency: 'Every night' },
-    { title: '15-minute gentle morning walk in natural daylight', frequency: '3x per week' },
-    { title: 'Brief grounding exercise when noticing acute worry', frequency: 'As needed' },
-  ];
+  // Suggestions come ONLY from this client's recorded sessions (the actions that
+  // actually surfaced in session) — no hardcoded presets. Already-assigned ones
+  // are excluded so we never re-suggest something they're already doing.
+  const assignedTitles = new Set((client.actions || []).map((a) => (a.title || '').trim().toLowerCase()));
+  const sessionSuggestions: string[] = Array.from(new Set<string>(
+    (client.sessions || []).flatMap((s) => String(s.homework || '').split(/;\s*/)).map((t) => t.trim()).filter((t) => t.length > 0)
+  )).filter((t) => !assignedTitles.has(t.toLowerCase())).slice(0, 6);
 
   const handleCreateAction = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +49,8 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
     setTimeout(() => setRecentlyAssigned(false), 3000);
   };
 
-  const handleApplyPreset = (preset: { title: string; frequency: string }) => {
-    setTitle(preset.title);
-    setFrequency(preset.frequency);
+  const handleApplySuggestion = (text: string) => {
+    setTitle(text);
   };
 
   return (
@@ -118,24 +117,27 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
             </div>
           </div>
 
-          {/* Quick Preset Suggestions */}
-          <div className="pt-2">
-            <span className="block u-eyebrow mb-2">
-              Quick suggestions
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {quickPresets.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleApplyPreset(preset)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-[#FCFDFE] border border-[#ECEFF3] text-[#3A4453] hover:border-[#DCE2EA] transition-colors text-left font-sans cursor-pointer"
-                >
-                  + {preset.title}
-                </button>
-              ))}
+          {/* Suggestions — from this client's recorded sessions only */}
+          {sessionSuggestions.length > 0 && (
+            <div className="pt-2">
+              <span className="block u-eyebrow mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#0D9488]" />
+                Suggested from recent sessions
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {sessionSuggestions.map((text, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleApplySuggestion(text)}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-[#F1FAF9] border border-[#D6EDEA] text-[#0F766E] hover:border-[#0D9488] transition-colors text-left font-sans cursor-pointer"
+                  >
+                    + {text}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </form>
       </div>
 

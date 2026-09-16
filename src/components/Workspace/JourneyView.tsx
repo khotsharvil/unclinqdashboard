@@ -24,96 +24,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
   onOpenEvidence,
   onAddJourneyStep,
 }) => {
-  const tracks: TherapyJourneyTrack[] = client.therapyJourneys && client.therapyJourneys.length > 0
-    ? client.therapyJourneys
-    : [
-        {
-          id: 'default-track',
-          title: client.journeyPatterns?.[0]?.name || 'Longitudinal Therapeutic Progress',
-          subtitle: 'Evolution of coping skills and therapeutic response over time',
-          evidenceGroupId: client.journeyPatterns?.[0]?.evidenceGroupId || 'ev-default',
-          supportingMomentsCount: client.journeyPatterns?.[0]?.supportingMomentsCount || 4,
-          observedPeriod: `${client.journeyPatterns?.[0]?.firstObserved || 'Aug 05'} → ${client.journeyPatterns?.[0]?.lastObserved || 'Today'} (4 Weeks)`,
-          steps: [
-            {
-              week: 'Week 1',
-              phaseTitle: 'Baseline',
-              dateRange: 'Week 1',
-              therapeuticFocus: {
-                title: 'Challenge / Baseline',
-                detail: client.journeyPatterns?.[0]?.name || 'Primary presenting concern',
-              },
-              intervention: {
-                name: 'Initial assessment & psychoeducation',
-                description: 'Mapping triggers and baseline somatic responses.',
-              },
-              clientApplication: {
-                attemptsCount: 1,
-                details: 'Initial reflection logged.',
-              },
-              clientResponse: {
-                verbatimQuote: client.journeyPatterns?.[0]?.clientResponse || 'Early stage engagement.',
-                summary: 'Baseline awareness established.',
-              },
-              observedChange: {
-                from: 'Unconscious automatic reaction',
-                to: 'Initial identification of pattern',
-                summary: 'Baseline established.',
-              },
-            },
-            {
-              week: 'Week 2',
-              phaseTitle: 'Awareness',
-              dateRange: 'Week 2',
-              therapeuticFocus: {
-                title: 'Therapeutic focus',
-                detail: 'Trigger recognition',
-              },
-              intervention: {
-                name: client.journeyPatterns?.[0]?.intervention?.name || 'Coping protocol',
-                description: client.journeyPatterns?.[0]?.intervention?.description || 'Active intervention.',
-              },
-              clientApplication: {
-                attemptsCount: client.journeyPatterns?.[0]?.applied?.attemptsCount || 2,
-                details: 'Applying intervention in high-stress moments.',
-              },
-              clientResponse: {
-                verbatimQuote: client.journeyPatterns?.[0]?.clientResponse || 'Noticing pattern earlier.',
-                summary: 'Increased self-monitoring.',
-              },
-              observedChange: {
-                from: 'Experiencing pattern automatically',
-                to: 'Recognising when it starts',
-                summary: 'From automatic reaction → recognizing when it starts',
-              },
-            },
-          ],
-          synthesis: {
-            dimensions: [
-              {
-                label: 'Awareness',
-                trend: 'up',
-                statusText: 'Improving',
-                description: 'Recognises triggers earlier across recent sessions.',
-              },
-              {
-                label: 'Skill application',
-                trend: 'up',
-                statusText: 'Emerging',
-                description: 'Applying introduced interventions more consistently.',
-              },
-              {
-                label: 'Underlying pattern',
-                trend: 'stable',
-                statusText: 'Persistent',
-                description: 'Underlying triggers remain active in high-pressure contexts.',
-              },
-            ],
-            overallTrajectory: 'Gradual progress',
-            therapeuticImplication: 'Therapy appears to be improving recognition and coping, while the underlying trigger remains persistent.',
-          },
-        },
-      ];
+  const tracks: TherapyJourneyTrack[] = client.therapyJourneys && client.therapyJourneys.length > 0 ? client.therapyJourneys : [];
 
   const [activeTrackIndex, setActiveTrackIndex] = useState(0);
   const currentTrack = tracks[activeTrackIndex] || tracks[0];
@@ -126,6 +37,17 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
   const [newIntervention, setNewIntervention] = useState('');
   const [newResponse, setNewResponse] = useState('');
   const [newObservedChange, setNewObservedChange] = useState('');
+
+  // Honest empty state — real data only, never a fabricated arc. When the client
+  // has no journey yet (no sessions / between-session activity), say so plainly.
+  if (!currentTrack) {
+    return (
+      <div className="max-w-2xl mx-auto mt-4 p-8 rounded-2xl border border-[#ECEFF3] bg-white text-center">
+        <p className="text-[15px] font-semibold text-[#10151F]">The journey builds as sessions add up.</p>
+        <p className="text-sm text-[#6B7686] mt-2 leading-relaxed">Once you record a session or {client.name?.split(' ')[0] || 'your client'} logs a few moments between sessions, their week-by-week journey — patterns, what they tried, and how they responded — appears here, drawn from real activity.</p>
+      </div>
+    );
+  }
 
   const handleOpenEvidenceDrawer = () => {
     const groupId = currentTrack.evidenceGroupId;

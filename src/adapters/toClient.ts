@@ -273,6 +273,62 @@ export function toClientStub(row: any): Client {
   } as Client & { _real?: boolean };
 }
 
+// Real journey → the JourneyView track shape. Built ENTIRELY from the backend
+// journey spine (starting / session / between-session nodes) + observed_changes.
+// No hardcoded clinical phrases — fields with no real data are left empty.
+function toTherapyJourneys(journey: any): any[] {
+  const spine: any[] = journey?.spine || [];
+  const steps = spine.filter((n) => n && n.type !== 'now').map((n: any) => {
+    if (n.type === 'starting') {
+      return {
+        week: 'Start', phaseTitle: n.label || 'Where they started', dateRange: n.started_at ? fmtFull(n.started_at) : '',
+        therapeuticFocus: { title: 'Starting context', detail: n.summary || '—' },
+        intervention: { name: '', description: n.prior_sessions ? `${n.prior_sessions} prior session${n.prior_sessions === 1 ? '' : 's'} before Unclinq.` : '' },
+        clientApplication: { attemptsCount: 0, details: '' },
+        clientResponse: { verbatimQuote: '', summary: '' },
+        observedChange: { summary: '' },
+      };
+    }
+    if (n.type === 'session') {
+      return {
+        week: `Session ${n.n}`, phaseTitle: 'Session', dateRange: n.at ? fmtFull(n.at) : '',
+        therapeuticFocus: { title: 'In the session', detail: n.summary || 'Session recorded.' },
+        intervention: { name: n.intervention || '', description: '' },
+        clientApplication: { attemptsCount: 0, details: '' },
+        clientResponse: { verbatimQuote: '', summary: '' },
+        observedChange: { summary: '' },
+      };
+    }
+    // between-session period
+    const intens = n.intensity ? `${n.intensity.from} → ${n.intensity.to}/10` : '';
+    return {
+      week: n.label || 'Between sessions', phaseTitle: n.label || 'Between sessions', dateRange: n.from ? fmtFull(n.from) : '',
+      therapeuticFocus: { title: 'What came up', detail: n.top_trigger || 'Between-session activity' },
+      intervention: { name: n.tried?.technique || '', description: n.tried?.outcome ? `Outcome: ${n.tried.outcome}` : '' },
+      clientApplication: { attemptsCount: n.count || 0, details: n.count ? `${n.count} moment${n.count === 1 ? '' : 's'} captured` : '' },
+      clientResponse: { verbatimQuote: n.quote || '', summary: '' },
+      observedChange: { summary: intens ? `Intensity ${intens}` : '' },
+    };
+  });
+  if (!steps.length) return [];
+  const oc: any[] = journey?.observed_changes || [];
+  const track: any = {
+    id: 'real-journey',
+    title: journey?.current_focus || 'Therapy journey',
+    subtitle: 'Built from real sessions and between-session activity.',
+    observedPeriod: '',
+    steps,
+  };
+  if (oc.length) {
+    track.maturationSummary = {
+      progressGauges: oc.slice(0, 3).map((c) => ({ label: c.kind === 'intensity' ? 'Intensity' : 'Pattern', statusText: '', description: c.text || '' })),
+      overallTrajectory: '',
+      therapeuticImplication: '',
+    };
+  }
+  return [track];
+}
+
 // Fetch everything for one client and assemble the Client object the tabs consume.
 export async function loadRealClient(clientId: string): Promise<Client> {
   const [ov, jr, br, nt] = await Promise.all([
@@ -312,6 +368,7 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     briefingId: br.briefing?.id,
     briefingFeedback: br.briefing?.feedback ?? null,
     journeyPatterns: toPatterns(journey),
+    therapyJourneys: toTherapyJourneys(journey),
     sessions: await buildSessions(clientId, journey),
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),

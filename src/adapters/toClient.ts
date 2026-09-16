@@ -320,10 +320,18 @@ function toTherapyJourneys(journey: any): any[] {
     steps,
   };
   if (oc.length) {
-    track.maturationSummary = {
-      progressGauges: oc.slice(0, 3).map((c) => ({ label: c.kind === 'intensity' ? 'Intensity' : 'Pattern', statusText: '', description: c.text || '' })),
-      overallTrajectory: '',
-      therapeuticImplication: '',
+    const dimensions = oc.slice(0, 3).map((c: any) => {
+      if (c.kind === 'intensity') {
+        const easing = typeof c.from === 'number' && typeof c.to === 'number' && c.from > c.to;
+        const rising = typeof c.from === 'number' && typeof c.to === 'number' && c.from < c.to;
+        return { label: 'Intensity', statusText: easing ? 'Easing' : rising ? 'Rising' : 'Holding', trend: easing ? 'up' : rising ? 'down' : 'stable', description: c.text || '' };
+      }
+      return { label: 'Pattern', statusText: 'Recognised', trend: 'emerging', description: c.text || '' };
+    });
+    track.synthesis = {
+      dimensions,
+      overallTrajectory: dimensions.some((d) => d.trend === 'up') ? 'Improving' : 'In progress',
+      therapeuticImplication: oc.map((c: any) => c.text).filter(Boolean).join(' · '),
     };
   }
   return [track];

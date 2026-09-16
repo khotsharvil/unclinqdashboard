@@ -222,7 +222,8 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
         </div>
       )}
 
-      {/* ============ THE ANSWER — trajectory synthesis, up top ============ */}
+      {/* ============ THE ANSWER — trajectory synthesis, up top (real observed changes only) ============ */}
+      {currentTrack.synthesis && currentTrack.synthesis.dimensions?.length > 0 && (
       <section className="bg-white rounded-2xl border border-[#ECEFF3] overflow-hidden">
         <div className="px-6 sm:px-8 py-7">
           <div className="flex items-center justify-between mb-3">
@@ -261,6 +262,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
           <span>Based on your check-ins and sessions between appointments</span>
         </div>
       </section>
+      )}
 
       {/* ============ THE JOURNEY — rising path + focused milestone ============ */}
       <section className="bg-white rounded-2xl border border-[#ECEFF3] px-6 sm:px-8 py-7">

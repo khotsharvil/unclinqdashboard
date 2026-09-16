@@ -47,8 +47,19 @@ export default function App() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'journey' | 'sessions' | 'actions' | 'notes'>('briefing');
 
-  // Therapist Profile & Onboarding
-  const [therapistProfile, setTherapistProfile] = useState<TherapistProfile>(INITIAL_THERAPIST_PROFILE);
+  // Therapist Profile & Onboarding. Seed the real logged-in identity immediately
+  // (from the cached user) so the header never flashes the sample "Dr. Elena Vance"
+  // before the profile fetch resolves. DEMO keeps the sample profile.
+  const [therapistProfile, setTherapistProfile] = useState<TherapistProfile>(() => {
+    if (DEMO) return INITIAL_THERAPIST_PROFILE;
+    const u = getUser();
+    return {
+      ...INITIAL_THERAPIST_PROFILE,
+      name: u?.name || '',
+      credentials: '',
+      practiceName: 'Unclinq',
+    };
+  });
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   // Invite Client Modal

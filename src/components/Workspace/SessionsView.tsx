@@ -24,6 +24,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Client, SessionRecord } from '../../types';
+import { therapistApi } from '../../api';
 
 interface SessionsViewProps {
   client: Client;
@@ -49,6 +50,18 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   const [transcriptSearch, setTranscriptSearch] = useState<string>('');
   const [editingObservations, setEditingObservations] = useState<Record<string, string>>({});
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
+  // Draft-session approval (a fresh recording is a draft until the therapist approves it).
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveErr, setApproveErr] = useState<string | null>(null);
+  const approveSession = async (sessionId: string) => {
+    setApprovingId(sessionId); setApproveErr(null);
+    try {
+      await therapistApi.approveSession(sessionId);
+      setApprovedIds(prev => new Set(prev).add(sessionId));
+    } catch { setApproveErr('Could not approve this session. Please try again.'); }
+    finally { setApprovingId(null); }
+  };
 
   // New session form state
   const [newSessionData, setNewSessionData] = useState<{
@@ -220,6 +233,41 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
           </div>
         </div>
 
+        {/* Draft recording → review & approve */}
+        {activeSession.processing && (
+          <div className="flex items-center gap-2.5 p-4 rounded-2xl border border-[#E7EFF0] bg-[#F5FAFA] text-[13px] text-[#0F766E]">
+            <Sparkles className="w-4 h-4" />
+            <span>This recording is transcribing and summarising — check back in a moment.</span>
+          </div>
+        )}
+        {activeSession.needsApproval && !approvedIds.has(activeSession.id) && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl border border-[#F3E2C0] bg-[#FCF7EC]">
+            <div className="flex items-start gap-2.5">
+              <FileText className="w-4 h-4 text-[#B45309] mt-0.5" />
+              <div>
+                <p className="text-[13px] font-semibold text-[#8A5A12]">Draft — review &amp; approve</p>
+                <p className="text-[12px] text-[#9A7B45] mt-0.5">The AI summary and any actions stay hidden from the client until you approve them.</p>
+                {approveErr && <p className="text-[12px] text-[#B0332F] mt-1">{approveErr}</p>}
+              </div>
+            </div>
+            <button
+              onClick={() => approveSession(activeSession.id)}
+              disabled={approvingId === activeSession.id}
+              className="inline-flex items-center gap-1.5 text-[13px] px-3.5 py-2 rounded-lg text-white font-medium cursor-pointer shrink-0"
+              style={{ background: '#0D9488' }}
+            >
+              <Check className="w-4 h-4" />
+              {approvingId === activeSession.id ? 'Approving…' : 'Approve & add to journey'}
+            </button>
+          </div>
+        )}
+        {activeSession.needsApproval && approvedIds.has(activeSession.id) && (
+          <div className="flex items-center gap-2 p-4 rounded-2xl border border-[#CDEBE4] bg-[#F0FAF8] text-[13px] text-[#0F766E]">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Approved — added to the journey and released to the client.</span>
+          </div>
+        )}
+
         {/* Session Transcript View */}
         <div className="p-6 sm:p-8 bg-white rounded-2xl border border-[#ECEFF3] space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#F2F5F8] pb-5">
@@ -390,6 +438,12 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                   <span className="text-[#6B7686]">
                     Session <span className="font-mono">{session.sessionNumber}</span> · <span className="font-mono">{session.duration || '45 min'}</span>
                   </span>
+                  {session.processing && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[#F1FAF9] text-[#0F766E] border border-[#D6EDEA]">Processing…</span>
+                  )}
+                  {session.needsApproval && !approvedIds.has(session.id) && (
+                    <span className="ml-2 inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-[#FCF7EC] text-[#8A5A12] border border-[#F3E2C0]">Draft · review</span>
+                  )}
                 </div>
 
                 {isInitial ? (

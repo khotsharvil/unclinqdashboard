@@ -45,9 +45,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* 1. Calm Greeting Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="u-eyebrow mb-2">Thursday, 27 August 2026</p>
+          <p className="u-eyebrow mb-2">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
           <h1 className="text-3xl sm:text-[2.5rem] font-serif font-semibold text-[#10151F] tracking-tight leading-[1.1]">
-            Good morning, {therapistProfile?.name || 'Dr. Elena Vance'}
+            {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; })()}, {therapistProfile?.name || 'there'}
           </h1>
           <p className="text-sm text-[#6B7686] mt-2.5 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0D9488]" />

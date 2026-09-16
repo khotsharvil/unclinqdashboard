@@ -168,6 +168,8 @@ export const therapistApi = {
     return api.postForm('/sessions', f);
   },
   sessions: (clientId: string) => api.get(`/sessions?client_id=${encodeURIComponent(clientId)}`),
+  // Approve a draft session's AI understanding → activates memory, releases actions.
+  approveSession: (sessionId: string) => api.post(`/sessions/${sessionId}/approve-summary`, {}),
   addNote: (id: string, body: string) => api.post(`/therapist/clients/${id}/notes`, { body }),
   profile: () => api.get('/therapist/profile'),
 

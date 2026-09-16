@@ -179,19 +179,34 @@ const MEM_INTERVENTION = ['intervention', 'therapist_guidance', 'agreed_action']
 
 // Full session records — fetches each session's detail (transcript + memory +
 // exercises) in parallel and maps into the Sessions tab shape.
-async function buildSessions(journey: any): Promise<SessionRecord[]> {
-  const list = journey?.sessions || [];
-  const details = await Promise.all(list.map((s: any) => therapistApi.session(s.id).catch(() => null)));
+async function buildSessions(clientId: string, journey: any): Promise<SessionRecord[]> {
+  // ALL sessions (draft + approved + still-processing) — NOT just the approved
+  // ones in the journey model — so a freshly recorded session appears immediately
+  // with an Approve action, instead of vanishing until it's approved.
+  let list: any[] = [];
+  try { const r = await therapistApi.sessions(clientId); list = r.sessions || []; }
+  catch { list = journey?.sessions || []; }
+  list = list
+    .filter((s: any) => s.status !== 'failed')
+    .slice()
+    .sort((a: any, b: any) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
+  // Fetch detail (transcript/memory/exercises) only for finished sessions.
+  const details = await Promise.all(list.map((s: any) => (s.status === 'ready' ? therapistApi.session(s.id).catch(() => null) : Promise.resolve(null))));
   const real = list.map((s: any, i: number): SessionRecord => {
     const d = details[i] || {};
     const mem = d.memory || [];
     const segs = d.transcript || [];
+    const ready = s.status === 'ready';
+    const secs = d.session?.duration_seconds || s.duration_seconds;
     return {
       id: s.id,
       sessionNumber: i + 1,
       date: fmtFull(s.occurred_at),
-      duration: d.session?.duration_seconds ? `${Math.round(d.session.duration_seconds / 60)} min` : undefined,
-      summary: d.session?.session_summary || s.session_summary || 'Session recorded.',
+      duration: secs ? `${Math.round(secs / 60)} min` : undefined,
+      summary: d.session?.session_summary || s.session_summary || (ready ? 'Session recorded.' : 'Transcribing & summarising…'),
+      processing: !ready,
+      summaryStatus: s.summary_status,
+      needsApproval: ready && s.summary_status === 'draft',
       keyThemes: mem.filter((m: any) => m.kind === 'theme').map((m: any) => m.content).slice(0, 8),
       interventions: mem.filter((m: any) => MEM_INTERVENTION.includes(m.kind)).map((m: any) => m.content).slice(0, 8),
       homework: (d.exercises || []).map((e: any) => e.description).filter(Boolean).join('; '),
@@ -297,7 +312,7 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     briefingId: br.briefing?.id,
     briefingFeedback: br.briefing?.feedback ?? null,
     journeyPatterns: toPatterns(journey),
-    sessions: await buildSessions(journey),
+    sessions: await buildSessions(clientId, journey),
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),
     evidenceStore: buildEvidenceStore(journey),

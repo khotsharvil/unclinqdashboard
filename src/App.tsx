@@ -344,6 +344,17 @@ export default function App() {
     setActiveWorkspaceTab('briefing');
     setCurrentView('workspace');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Real client → hydrate the full workspace (briefing/sessions/journey/etc.),
+    // otherwise the tabs show the empty stub. Mirrors handleSelectClient.
+    if ((client as any)._real) {
+      loadRealClient(client.id)
+        .then((full) => {
+          const withFlag = Object.assign(full, { _real: true });
+          setSelectedClient(withFlag);
+          setClients((prev) => prev.map((c) => (c.id === full.id ? withFlag : c)));
+        })
+        .catch(() => {});
+    }
   };
 
   // Select client from search or list

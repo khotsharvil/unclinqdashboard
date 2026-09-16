@@ -59,17 +59,10 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
 
   // Required fields per step — credentials that make the profile clinically
   // credible. (Bio, specializations, logo and emergency phone stay optional.)
-  function missingFor(currentStep: string): string | null {
-    if (DEMO) return null; // demo: nothing is required
-    if (currentStep === 'professional') {
-      if (!form.name.trim()) return 'Please enter your full name.';
-      if (!form.professional_title.trim()) return 'Please enter your professional title.';
-      if (!form.qualification.trim()) return 'Please enter your qualification.';
-      if (!form.registration_no.trim()) return 'Please enter your registration / certification number.';
-    }
-    if (currentStep === 'practice') {
-      if (!form.practice_name.trim()) return 'Please enter your practice / clinic name.';
-    }
+  function missingFor(_currentStep: string): string | null {
+    // Profile fields (name / title / qualification / registration / practice) are
+    // OPTIONAL for now — therapists can explore the workspace immediately and
+    // complete their credentials later. Only the legal consent step still gates.
     return null;
   }
 
@@ -166,10 +159,11 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
 
           {step === 'professional' && (
             <Card eyebrow="Professional profile" title="Tell us who you are, professionally.">
-              <Field required label="Full name" value={form.name} onChange={(v) => set('name', v)} placeholder="Dr. Jane Smith" />
-              <Field required label="Professional title" value={form.professional_title} onChange={(v) => set('professional_title', v)} placeholder="Clinical Psychologist" />
-              <Field required label="Qualification" value={form.qualification} onChange={(v) => set('qualification', v)} placeholder="M.Phil Clinical Psychology" />
-              <Field required label="Registration / certification no." value={form.registration_no} onChange={(v) => set('registration_no', v)} placeholder="RCI-A-12345" />
+              <p className="text-sm text-[#6B7686] mb-4">All optional for now — you can add these anytime from Settings. They power your client-facing verification, so worth completing soon.</p>
+              <Field label="Full name" value={form.name} onChange={(v) => set('name', v)} placeholder="Dr. Jane Smith" />
+              <Field label="Professional title" value={form.professional_title} onChange={(v) => set('professional_title', v)} placeholder="Clinical Psychologist" />
+              <Field label="Qualification" value={form.qualification} onChange={(v) => set('qualification', v)} placeholder="M.Phil Clinical Psychology" />
+              <Field label="Registration / certification no." value={form.registration_no} onChange={(v) => set('registration_no', v)} placeholder="RCI-A-12345" />
             </Card>
           )}
 
@@ -200,7 +194,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 </label>
                 <p className="text-[11px] text-[#9AA4B2] mt-1.5">Upload your logo and clients + your dashboard show your brand instead of Unclinq’s.</p>
               </div>
-              <Field required label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
+              <Field label="Practice / clinic name" value={form.practice_name} onChange={(v) => set('practice_name', v)} placeholder="Still Waters Therapy" />
               <Field label="Specializations (comma-separated)" value={form.specializations} onChange={(v) => set('specializations', v)} placeholder="Anxiety, Trauma, CBT" />
               <div className="mt-3">
                 <Field label="Emergency contact number" value={form.emergency_phone} onChange={(v) => set('emergency_phone', v)} placeholder="+91 98765 43210" />
@@ -220,7 +214,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 {/* connecting spine */}
                 <div className="absolute left-[19px] top-6 bottom-14 w-0.5 bg-gradient-to-b from-[#0D9488]/40 via-[#0D9488]/25 to-[#0D9488]/10" />
                 {[
-                  { Icon: Mic, title: 'Session', sub: 'You meet — recorded in the client’s app, with consent.' },
+                  { Icon: Mic, title: 'Session', sub: 'You meet — record it from your dashboard, with consent.' },
                   { Icon: MessageCircle, title: 'The client’s week', sub: 'Journal · Emora · actions, between sessions.' },
                   { Icon: Sparkles, title: 'AI synthesis', sub: 'Woven into Therapy Moments — evidence, not noise.' },
                   { Icon: FileText, title: 'Next-session briefing', sub: 'One-minute, evidence-backed prep.' },
@@ -301,9 +295,15 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
               {i > 0 && step !== 'done' && <button onClick={back} disabled={busy} className="u-btn-ghost"><ArrowLeft className="w-4 h-4" /><span>Back</span></button>}
               <div className="flex-1" />
               {step === 'professional' ? (
-                <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+                <>
+                  <button onClick={next} disabled={busy} className="u-btn-ghost"><span>Skip for now</span></button>
+                  <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Save & continue</span><ArrowRight className="w-4 h-4" /></button>
+                </>
               ) : step === 'practice' ? (
-                <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
+                <>
+                  <button onClick={next} disabled={busy} className="u-btn-ghost"><span>Skip for now</span></button>
+                  <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Save & continue</span><ArrowRight className="w-4 h-4" /></button>
+                </>
               ) : step === 'invite' ? (
                 code ? (
                   <button onClick={next} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>

@@ -174,7 +174,12 @@ export interface SessionRecord {
   time?: string;
   duration?: string; // e.g. "45 min", "50 min"
   isInitialSession?: boolean;
-  
+  // Draft lifecycle: a freshly recorded session's AI understanding is a DRAFT
+  // until the therapist approves it. needsApproval surfaces the Approve action.
+  needsApproval?: boolean;
+  processing?: boolean; // transcription/understanding still running
+  summaryStatus?: string;
+
   // Initial session specific fields
   gettingToKnowTitle?: string;
   presentingConcerns?: string[];

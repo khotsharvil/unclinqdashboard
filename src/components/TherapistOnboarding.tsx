@@ -317,7 +317,9 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 <button
                   onClick={async () => {
                     setError('');
-                    if (!(agreeDpa && confirmClientConsent)) { setError('Please tick both to continue.'); return; }
+                    if (!agreeDpa && !confirmClientConsent) { setError('Please tick both boxes above to continue.'); return; }
+                    if (!agreeDpa) { setError('Please tick the first box (Terms & DPA) to continue.'); return; }
+                    if (!confirmClientConsent) { setError('Please tick the second box (client consent) to continue.'); return; }
                     setBusy(true);
                     try {
                       await api.post('/auth/consent', { age_confirmed: true, accepted: [{ doc: 'terms_therapist' }, { doc: 'privacy' }, { doc: 'data_processing' }] });
@@ -325,7 +327,7 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                     } catch (e: any) { setError(e?.data?.error || 'Could not save your consent. Please try again.'); }
                     finally { setBusy(false); }
                   }}
-                  disabled={busy || !agreeDpa || !confirmClientConsent}
+                  disabled={busy}
                   className="u-btn-primary"><span>Agree &amp; continue</span><ArrowRight className="w-4 h-4" /></button>
               ) : step === 'done' ? (
                 <button onClick={finish} disabled={busy} className="u-btn-primary"><span>Go to my dashboard</span><ArrowRight className="w-4 h-4" /></button>

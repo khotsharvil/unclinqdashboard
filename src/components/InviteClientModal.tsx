@@ -67,6 +67,15 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   // Sync state when modal is opened or target client changes
   React.useEffect(() => {
     if (isOpen) {
+      // Fresh start each time the modal opens — otherwise the previous client's
+      // generated code / "Invitation sent" state carries over (needed a hard refresh).
+      setSentSuccess(false);
+      setSending(false);
+      setGeneratedCode(null);
+      setGeneratedLink('');
+      setInviteError('');
+      setCopiedCode(false);
+      setCopiedLink(false);
       if (currentTarget) {
         setSelectedClientId(currentTarget.id);
         setClientName(currentTarget.name);

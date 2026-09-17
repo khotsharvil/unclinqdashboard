@@ -82,7 +82,7 @@ export const SessionRecorder: React.FC<{
         const tabAudio = display.getAudioTracks();
         if (!tabAudio.length) {
           teardownStreams();
-          setError('No call audio was shared. When the picker appears, choose the meeting tab and tick “Share tab audio”, then start again.');
+          setError('No call audio was shared. Start again and tick the audio box — “Share tab audio” for a browser tab, or “Share system audio” for the Entire Screen (desktop app).');
           return;
         }
         // 2) The therapist's mic.
@@ -213,8 +213,12 @@ export const SessionRecorder: React.FC<{
 
               {mode === 'online' && phase !== 'recording' && (
                 <div className="mb-4 rounded-xl bg-[#F1FAF9] border border-[#D6EDEA] px-3.5 py-3 text-[12px] text-[#0F766E] leading-relaxed">
-                  <p className="font-semibold mb-0.5">Recording an online call</p>
-                  When you start, pick your <b>Google Meet / Zoom tab</b> and turn on <b>“Share tab audio”</b>. Unclinq records the client’s voice from the call plus your mic. (Keep the call open in a browser tab.)
+                  <p className="font-semibold mb-1">Recording an online call — when the picker opens:</p>
+                  <ul className="space-y-1 list-disc pl-4">
+                    <li><b>Call in a browser tab</b> (Meet/Zoom in Chrome): pick the <b>tab</b> and tick <b>“Share tab audio”</b>.</li>
+                    <li><b>Zoom / Meet desktop app</b>: pick <b>“Entire Screen”</b> and tick <b>“Share system audio”</b>.</li>
+                  </ul>
+                  <p className="mt-1.5">Unclinq records the client’s voice from the call plus your mic. Nothing is stored — only the transcript.</p>
                 </div>
               )}
 

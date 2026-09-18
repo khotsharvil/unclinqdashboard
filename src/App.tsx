@@ -626,7 +626,7 @@ export default function App() {
             onBackToClients={() => setCurrentView('clients')}
             onUpdateClient={handleUpdateClient}
             onOpenInviteClient={handleOpenInviteModal}
-            onSeedHistory={(selectedClient as any)._real ? () => setIsSeedHistoryOpen(true) : undefined}
+            onSeedHistory={!(selectedClient as any)._pending ? () => setIsSeedHistoryOpen(true) : undefined}
           />
         )}
 

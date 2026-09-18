@@ -40,6 +40,8 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
   const [done, setDone] = useState(false);
 
   const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean);
+  // In demo mode there's no backend — degrade gracefully so the box is still usable.
+  const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
 
   function applyProposals(p: any) {
     if (p.focus) setFocus(p.focus);
@@ -56,6 +58,7 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
   async function structureText() {
     if (!freeText.trim()) { setError('Write or paste something first.'); return; }
     setExtracting(true); setError('');
+    if (DEMO) { setShowStructured(true); setExtracting(false); return; } // no backend in demo
     try {
       const r = await therapistApi.extractContextText(clientId, freeText.trim());
       applyProposals(r.proposals || {});
@@ -75,6 +78,7 @@ export const SeedHistoryModal: React.FC<Props> = ({ clientId, clientName, onClos
   async function save() {
     if (!freeText.trim() && !showStructured) { setError('Write something about this client, or add structured details.'); return; }
     setSaving(true); setError('');
+    if (DEMO) { setDone(true); setTimeout(() => { onSeeded(); onClose(); }, 700); return; } // no backend in demo
     try {
       await therapistApi.seedContext(clientId, {
         free_text: freeText.trim() || undefined,

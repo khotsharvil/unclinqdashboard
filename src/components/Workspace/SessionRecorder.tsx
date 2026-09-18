@@ -124,8 +124,23 @@ export const SessionRecorder: React.FC<{
     rec.stop();
   }
 
+  // In demo mode there's no backend to accept the audio — simulate the pipeline so
+  // the feature is fully demoable (the real path below runs unchanged in prod).
+  const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
+
   async function submit(blob: Blob, filename: string) {
     setPhase('uploading'); setError('');
+    if (DEMO) {
+      setPhase('tracking');
+      let i = 0;
+      setStatus(STAGES[0]);
+      pollRef.current = setInterval(() => {
+        i += 1;
+        if (i < STAGES.length) { setStatus(STAGES[i]); }
+        else { clearInterval(pollRef.current); setStatus('ready'); onDone?.(); }
+      }, 1100);
+      return;
+    }
     try {
       const res = await therapistApi.uploadSession(clientId, blob, filename, new Date().toISOString());
       const id = res.id;

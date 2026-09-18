@@ -130,10 +130,6 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !clientEmail.trim()) return;
-    if (rel.relationship_type === 'ongoing' && !rel.valid) {
-      setInviteError('For an ongoing client, add a summary, current focus, and at least one goal.');
-      return;
-    }
     setInviteError('');
     setSending(true);
 
@@ -381,7 +377,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
 
             <button
               type="submit"
-              disabled={sending || sentSuccess || (rel.relationship_type === 'ongoing' && !rel.valid)}
+              disabled={sending || sentSuccess}
               className="u-btn-primary w-full sm:w-auto justify-center disabled:opacity-50"
             >
               <Send className="w-4 h-4 text-[#2DD4BF]" />

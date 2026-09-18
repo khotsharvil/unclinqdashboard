@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, History, Plus, X } from 'lucide-react';
+import { Plus, X, UserPlus, History } from 'lucide-react';
 import type { SeedContext, Assessment } from '../api';
 
 /*
- * InviteRelationship — the New vs Ongoing choice + optional assessments, shared
- * by the invite modal and the onboarding invite step.
- *   New      → client starts fresh (assessments still allowed).
- *   Ongoing  → the therapist already has history, so a little is required now.
- * Assessments/tests (any type, freeform) can be added for EITHER — their context
- * attunes Emora and anchors the briefing. Everything is stored on the invitation
- * and applied the moment the client redeems. Reports { relationship_type,
- * seed_context, valid } up via onChange; the parent blocks "Generate" until valid.
+ * InviteRelationship — free-text-first context for a client invite.
+ *
+ * Therapist feedback: don't force our schema. There are NO required fields and no
+ * "new vs ongoing" gate — the therapist writes whatever they want (in their own
+ * words) about the client, or nothing at all. Whatever they write is stored on the
+ * invitation as seed_context.free_text and applied verbatim (as therapist-authored
+ * context) the moment the client redeems, so the AI still has something to work
+ * with — without boxing the therapist into fields.
+ *
+ * Assessments/tests stay as an optional, fully freeform add. Reports
+ * { relationship_type, seed_context, valid:true } up via onChange — the invite is
+ * NEVER blocked by this component (only name + email are required, in the modal).
  */
 export interface InvitePayload {
   relationship_type: 'new' | 'ongoing';
@@ -20,15 +24,10 @@ export interface InvitePayload {
 
 type Row = { instrument: string; score: string; context: string; taken_at: string };
 const emptyRow = (): Row => ({ instrument: '', score: '', context: '', taken_at: '' });
-const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean);
 
 export const InviteRelationship: React.FC<{ onChange: (p: InvitePayload) => void }> = ({ onChange }) => {
   const [mode, setMode] = useState<'new' | 'ongoing'>('new');
-  const [clientSummary, setClientSummary] = useState('');
-  const [wantedHelp, setWantedHelp] = useState('');
-  const [experiencing, setExperiencing] = useState('');
-  const [focus, setFocus] = useState('');
-  const [goals, setGoals] = useState('');
+  const [freeText, setFreeText] = useState('');
   const [tests, setTests] = useState<Row[]>([]);
 
   useEffect(() => {
@@ -41,39 +40,30 @@ export const InviteRelationship: React.FC<{ onChange: (p: InvitePayload) => void
         taken_at: t.taken_at || undefined,
       }));
 
-    const historyValid = !!clientSummary.trim() && !!focus.trim() && lines(goals).length > 0;
-
     const seed_context: SeedContext = {};
-    if (mode === 'ongoing') {
-      seed_context.client_summary = clientSummary.trim() || undefined;
-      seed_context.wanted_help_with = wantedHelp.trim() || undefined;
-      seed_context.experiencing = lines(experiencing);
-      seed_context.focus = focus.trim() || undefined;
-      seed_context.goals = lines(goals);
-    }
+    if (freeText.trim()) seed_context.free_text = freeText.trim();
     if (assessments.length) seed_context.assessments = assessments;
 
-    const hasSeed = mode === 'ongoing' || assessments.length > 0;
+    const hasSeed = !!seed_context.free_text || assessments.length > 0;
     onChange({
-      relationship_type: mode,
+      relationship_type: mode, // the therapist's explicit choice — but it never gates the invite
       seed_context: hasSeed ? seed_context : undefined,
-      valid: mode === 'new' ? true : historyValid,
+      valid: true, // never blocks — the therapist can add as much or as little as they like
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, clientSummary, wantedHelp, experiencing, focus, goals, tests]);
+  }, [mode, freeText, tests]);
 
   const setTest = (i: number, k: keyof Row, v: string) => setTests((r) => r.map((t, idx) => (idx === i ? { ...t, [k]: v } : t)));
   const addTest = () => setTests((r) => [...r, emptyRow()]);
   const removeTest = (i: number) => setTests((r) => r.filter((_, idx) => idx !== i));
 
   const inp = 'w-full rounded-lg border border-[#ECEFF3] bg-[#F7F9FB] px-3 py-2 text-[14px] text-[#10151F] focus:border-[#0D9488] focus:bg-white focus:outline-none';
-  const lbl = 'block text-[13px] font-medium text-[#3A4453] mb-1.5';
-  const req = <span className="text-[#B0332F]"> *</span>;
 
   return (
-    <div>
-      {/* New vs Ongoing segmented toggle */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
+    <div className="space-y-3">
+      {/* New vs Ongoing — the therapist's choice. Ongoing just means "we have history";
+          it never forces any field. */}
+      <div className="grid grid-cols-2 gap-2">
         {([
           { k: 'new', Icon: UserPlus, title: 'New client', sub: 'Starting fresh' },
           { k: 'ongoing', Icon: History, title: 'Ongoing client', sub: 'We have history' },
@@ -92,38 +82,24 @@ export const InviteRelationship: React.FC<{ onChange: (p: InvitePayload) => void
         })}
       </div>
 
-      {mode === 'ongoing' && (
-        <div className="space-y-3 rounded-xl bg-[#FBFCFD] border border-[#ECEFF3] p-3.5 mb-3">
-          <p className="text-[12px] text-[#6B7686] leading-relaxed">
-            A little history so Unclinq has continuity from day one. The summary and what they’re working through also seed their Journey; the rest stays clinician-only.
-          </p>
-          <div>
-            <label className={lbl}>Client summary (they’ll see this){req}</label>
-            <textarea value={clientSummary} onChange={(e) => setClientSummary(e.target.value)} rows={2}
-              placeholder="e.g. We’ve been working together since spring on managing work stress and sleep." className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>Current focus{req}</label>
-            <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="e.g. Noticing the work-stress spiral earlier" className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>Goals (one per line){req}</label>
-            <textarea value={goals} onChange={(e) => setGoals(e.target.value)} rows={2}
-              placeholder={'Build an evening wind-down\nName feelings before reacting'} className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>What they wanted help with <span className="text-[#9AA4B2] font-normal">(optional)</span></label>
-            <input value={wantedHelp} onChange={(e) => setWantedHelp(e.target.value)} placeholder="e.g. Feeling on edge most evenings" className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>What they’re experiencing <span className="text-[#9AA4B2] font-normal">(optional, one per line)</span></label>
-            <textarea value={experiencing} onChange={(e) => setExperiencing(e.target.value)} rows={2}
-              placeholder={'Trouble sleeping\nSnapping at family'} className={inp} />
-          </div>
-        </div>
-      )}
+      {/* Free-text context — the therapist's own words, no required fields */}
+      <div>
+        <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">
+          {mode === 'ongoing' ? 'Their history & where things stand' : 'Anything you want Unclinq to know about this client'} <span className="text-[#9AA4B2] font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={freeText}
+          onChange={(e) => setFreeText(e.target.value)}
+          rows={4}
+          placeholder={"In your own words — history, what you're working on, how they show up, anything useful. No format needed; write it however you think about them.\n\nYou can also add or edit this anytime once they're connected (and paste/photograph existing notes there)."}
+          className={`${inp} leading-relaxed`}
+        />
+        <p className="text-[11px] text-[#6B7686] mt-1 leading-relaxed">
+          Whatever you write is kept as your own context for this client and helps Unclinq stay attuned from day one. Leave it blank to start fresh.
+        </p>
+      </div>
 
-      {/* Assessments / tests — any type, freeform. Available for new AND ongoing. */}
+      {/* Assessments / tests — any type, fully freeform, optional */}
       <div className="rounded-xl bg-[#FBFCFD] border border-[#ECEFF3] p-3.5">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[#10151F]">Assessments / tests <span className="text-[#9AA4B2] font-normal">(optional)</span></span>
@@ -132,7 +108,7 @@ export const InviteRelationship: React.FC<{ onChange: (p: InvitePayload) => void
           </button>
         </div>
         <p className="text-[11px] text-[#6B7686] mt-1 leading-relaxed">
-          Any type — PHQ-9, a Gottman or couples assessment, a trauma screen, an attachment measure, your own tool. The <strong>context</strong> (what it revealed, how to support them) attunes Emora and anchors the briefing — the client never sees raw scores.
+          Any type — PHQ-9, a Gottman or couples assessment, a trauma screen, an attachment measure, your own tool. The <strong>context</strong> (what it revealed, how to support them) attunes Emora — the client never sees raw scores.
         </p>
 
         {tests.length === 0 ? (

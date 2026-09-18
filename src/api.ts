@@ -86,6 +86,7 @@ export const api = {
   get: (p: string) => request('GET', p),
   post: (p: string, b?: any) => request('POST', p, b),
   patch: (p: string, b?: any) => request('PATCH', p, b),
+  del: (p: string) => request('DELETE', p),
   postForm: (p: string, f: FormData) => requestForm(p, f),
 };
 
@@ -123,6 +124,7 @@ export interface Assessment {
 
 // History captured for an "ongoing" client at invite time (applied on redeem).
 export interface SeedContext {
+  free_text?: string;
   client_summary?: string;
   wanted_help_with?: string;
   experiencing?: string[];
@@ -170,8 +172,23 @@ export const therapistApi = {
   sessions: (clientId: string) => api.get(`/sessions?client_id=${encodeURIComponent(clientId)}`),
   // Approve a draft session's AI understanding → activates memory, releases actions.
   approveSession: (sessionId: string) => api.post(`/sessions/${sessionId}/approve-summary`, {}),
+  editSessionSummary: (sessionId: string, session_summary: string) => api.patch(`/sessions/${sessionId}/summary`, { session_summary }),
   addNote: (id: string, body: string) => api.post(`/therapist/clients/${id}/notes`, { body }),
+  editNote: (noteId: string, body: string) => api.patch(`/therapist/notes/${noteId}`, { body }),
+  deleteNote: (noteId: string) => api.del(`/therapist/notes/${noteId}`),
   profile: () => api.get('/therapist/profile'),
+
+  // Journey/memory items — free-text add + inline edit + soft-delete (everything editable).
+  addMemory: (id: string, content: string, kind?: string) => api.post(`/therapist/clients/${id}/memory`, { content, kind }),
+  editMemory: (id: string, memId: string, body: { content?: string; active?: boolean }) =>
+    api.patch(`/therapist/clients/${id}/memory/${memId}`, body),
+  deleteMemory: (id: string, memId: string) => api.del(`/therapist/clients/${id}/memory/${memId}`),
+
+  // Actions / exercises — assign + edit + delete.
+  assignExercise: (id: string, description: string) => api.post(`/therapist/clients/${id}/exercises`, { description }),
+  editExercise: (id: string, exId: string, body: { description?: string; status?: string }) =>
+    api.patch(`/therapist/clients/${id}/exercises/${exId}`, body),
+  deleteExercise: (id: string, exId: string) => api.del(`/therapist/clients/${id}/exercises/${exId}`),
 
   // Seed an existing client's history (see backend migration 010).
   seedContext: (id: string, data: any) => api.post(`/therapist/clients/${id}/context/seed`, data),
@@ -179,6 +196,8 @@ export const therapistApi = {
   // Assessments / tests (any type; freeform).
   assessments: (id: string) => api.get(`/therapist/clients/${id}/assessments`),
   addAssessment: (id: string, data: Assessment) => api.post(`/therapist/clients/${id}/assessments`, data),
+  editAssessment: (id: string, aid: string, data: Partial<Assessment>) => api.patch(`/therapist/clients/${id}/assessments/${aid}`, data),
+  deleteAssessment: (id: string, aid: string) => api.del(`/therapist/clients/${id}/assessments/${aid}`),
   extractContextText: (id: string, text: string) => api.post(`/therapist/clients/${id}/context/extract`, { text }),
   extractContextImage: (id: string, file: File) => {
     const f = new FormData(); f.append('image', file);

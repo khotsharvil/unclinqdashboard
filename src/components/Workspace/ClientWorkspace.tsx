@@ -12,6 +12,7 @@ import {
   Mic
 } from 'lucide-react';
 import { SessionRecorder } from './SessionRecorder';
+import { therapistApi } from '../../api';
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
 import { BriefingView } from './BriefingView';
@@ -56,14 +57,44 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   };
 
   const handleUpdateTherapistObservation = (sessionId: string, obsText: string) => {
-    const updatedSessions = client.sessions.map(s => 
+    const updatedSessions = client.sessions.map(s =>
       s.id === sessionId ? { ...s, therapistObservations: obsText } : s
     );
+    onUpdateClient({ ...client, sessions: updatedSessions });
+    if (isReal) therapistApi.editSessionSummary(sessionId, obsText).catch(() => {});
+  };
+
+  // Replace a whole session (used when the therapist edits any of its fields inline).
+  const handleUpdateSession = (updated: SessionRecord) => {
+    onUpdateClient({ ...client, sessions: client.sessions.map(s => s.id === updated.id ? updated : s) });
+    if (isReal) {
+      const summary = updated.duringWork?.whatDiscussed || updated.summary || '';
+      if (summary) therapistApi.editSessionSummary(updated.id, summary).catch(() => {});
+    }
+  };
+
+  // Log an in-session activity + the client's response. Appends to the session
+  // locally AND, for a real client, writes it as a therapist-authored `intervention`
+  // memory so the AI engine (patterns, briefing) reads it — the same place the
+  // recorded path lands auto-detected interventions.
+  const handleLogActivity = (sessionId: string, activity: string, response: string) => {
     onUpdateClient({
       ...client,
-      sessions: updatedSessions,
+      sessions: client.sessions.map(s => s.id === sessionId
+        ? ({ ...s, inSessionActivities: [ ...(((s as any).inSessionActivities) || []), { activity, response } ] } as SessionRecord)
+        : s),
     });
+    if (real && activity) {
+      const content = response ? `In session — ${activity}. Client response: ${response}` : `In session — ${activity}`;
+      therapistApi.addMemory(real, content, 'intervention').catch(() => {});
+    }
   };
+
+  // Every handler updates local state immediately (works in demo + keeps the UI
+  // snappy) and, for a REAL backend-connected client, best-effort persists via the
+  // API. The real client's items carry backend ids, so edit/delete map straight
+  // through; the AI engine keeps reading the same tables it always has.
+  const real = isReal ? client.id : null;
 
   const handleAddAction = (newAction: Partial<ActionItem>) => {
     const action: ActionItem = {
@@ -76,27 +107,24 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
       status: newAction.status || 'in_progress',
       frequency: newAction.frequency,
     };
-    onUpdateClient({
-      ...client,
-      actions: [action, ...client.actions],
-    });
+    onUpdateClient({ ...client, actions: [action, ...client.actions] });
+    if (real && action.title) therapistApi.assignExercise(real, action.title).catch(() => {});
+  };
+
+  const handleUpdateAction = (actionId: string, patch: Partial<ActionItem>) => {
+    onUpdateClient({ ...client, actions: client.actions.map(a => a.id === actionId ? { ...a, ...patch } : a) });
+    if (real && (patch.title || patch.status)) {
+      therapistApi.editExercise(real, actionId, { description: patch.title, status: patch.status as any }).catch(() => {});
+    }
   };
 
   const handleUpdateActionStatus = (actionId: string, status: ActionItem['status']) => {
-    const updatedActions = client.actions.map(a => 
-      a.id === actionId ? { ...a, status } : a
-    );
-    onUpdateClient({
-      ...client,
-      actions: updatedActions,
-    });
+    handleUpdateAction(actionId, { status });
   };
 
   const handleDeleteAction = (actionId: string) => {
-    onUpdateClient({
-      ...client,
-      actions: client.actions.filter(a => a.id !== actionId),
-    });
+    onUpdateClient({ ...client, actions: client.actions.filter(a => a.id !== actionId) });
+    if (real) therapistApi.deleteExercise(real, actionId).catch(() => {});
   };
 
   const handleAddNote = (newNote: Partial<TherapistNote>) => {
@@ -108,17 +136,18 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
       isPrivate: true,
       category: newNote.category || 'clinical_impression',
     };
-    onUpdateClient({
-      ...client,
-      notes: [note, ...client.notes],
-    });
+    onUpdateClient({ ...client, notes: [note, ...client.notes] });
+    if (real && note.content) therapistApi.addNote(real, note.title ? `${note.title}\n${note.content}` : note.content).catch(() => {});
+  };
+
+  const handleUpdateNote = (noteId: string, patch: Partial<TherapistNote>) => {
+    onUpdateClient({ ...client, notes: client.notes.map(n => n.id === noteId ? { ...n, ...patch } : n) });
+    if (real && typeof patch.content === 'string') therapistApi.editNote(noteId, patch.content).catch(() => {});
   };
 
   const handleDeleteNote = (noteId: string) => {
-    onUpdateClient({
-      ...client,
-      notes: client.notes.filter(n => n.id !== noteId),
-    });
+    onUpdateClient({ ...client, notes: client.notes.filter(n => n.id !== noteId) });
+    if (real) therapistApi.deleteNote(noteId).catch(() => {});
   };
 
   return (
@@ -185,7 +214,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                   </span>
                 )}
 
-                {isReal && (
+                {!(client as any)._pending && (
                   <button
                     onClick={() => setRecording(true)}
                     className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-lg text-white font-medium transition-colors cursor-pointer"
@@ -270,6 +299,8 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             client={client}
             selectedSessionId={selectedSessionId}
             onUpdateTherapistObservation={handleUpdateTherapistObservation}
+            onUpdateSession={handleUpdateSession}
+            onLogActivity={handleLogActivity}
             onOpenEvidence={onOpenEvidence}
           />
         )}
@@ -279,6 +310,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             client={client}
             onAddAction={handleAddAction}
             onUpdateActionStatus={handleUpdateActionStatus}
+            onUpdateAction={handleUpdateAction}
             onDeleteAction={handleDeleteAction}
           />
         )}
@@ -287,6 +319,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
           <NotesView
             client={client}
             onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
             onDeleteNote={handleDeleteNote}
           />
         )}

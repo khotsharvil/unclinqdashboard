@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
-import { Plus, Lock, Trash2, Calendar, FileText } from 'lucide-react';
+import { Plus, Lock, Trash2, Calendar, FileText, Pencil, Check, X } from 'lucide-react';
 import { Client, TherapistNote } from '../../types';
 
 interface NotesViewProps {
   client: Client;
   onAddNote?: (note: Partial<TherapistNote>) => void;
+  onUpdateNote?: (noteId: string, patch: Partial<TherapistNote>) => void;
   onDeleteNote?: (noteId: string) => void;
 }
 
 export const NotesView: React.FC<NotesViewProps> = ({
   client,
   onAddNote,
+  onUpdateNote,
   onDeleteNote,
 }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [category, setCategory] = useState<TherapistNote['category']>('clinical_impression');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+
+  const startEdit = (n: TherapistNote) => { setEditingId(n.id); setEditTitle(n.title || ''); setEditContent(n.content || ''); };
+  const saveEdit = (id: string) => {
+    if (editContent.trim() && onUpdateNote) onUpdateNote(id, { title: editTitle.trim() || undefined, content: editContent.trim() });
+    setEditingId(null);
+  };
 
   const templates = [
     {
@@ -206,20 +217,39 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   )}
                 </div>
 
-                {onDeleteNote && (
-                  <button
-                    onClick={() => onDeleteNote(note.id)}
-                    className="text-[#9AA4B2] hover:text-[#E11D48] p-1.5 rounded-lg transition-colors cursor-pointer"
-                    title="Delete note"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                <div className="flex items-center gap-1 shrink-0">
+                  {editingId === note.id ? (
+                    <>
+                      <button onClick={() => saveEdit(note.id)} title="Save" className="text-[#0F766E] hover:bg-[#F1FAF9] p-1.5 rounded-lg cursor-pointer"><Check className="w-4 h-4" /></button>
+                      <button onClick={() => setEditingId(null)} title="Cancel" className="text-[#9AA4B2] hover:text-[#10151F] p-1.5 rounded-lg cursor-pointer"><X className="w-4 h-4" /></button>
+                    </>
+                  ) : (
+                    <>
+                      {onUpdateNote && (
+                        <button onClick={() => startEdit(note)} title="Edit note"
+                          className="text-[#9AA4B2] hover:text-[#0F766E] p-1.5 rounded-lg transition-colors cursor-pointer"><Pencil className="w-4 h-4" /></button>
+                      )}
+                      {onDeleteNote && (
+                        <button onClick={() => onDeleteNote(note.id)} title="Delete note"
+                          className="text-[#9AA4B2] hover:text-[#E11D48] p-1.5 rounded-lg transition-colors cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
-              <p className="text-base sm:text-lg font-serif text-[#10151F] leading-relaxed whitespace-pre-wrap font-normal">
-                {note.content}
-              </p>
+              {editingId === note.id ? (
+                <div className="space-y-2">
+                  <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Title (optional)"
+                    className="w-full px-3 py-2 bg-white border border-[#ECEFF3] rounded-lg text-sm font-serif text-[#10151F] focus:outline-none focus:border-[#0D9488]" />
+                  <textarea autoFocus value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={5}
+                    className="w-full p-4 bg-white border border-[#0D9488] rounded-lg text-base font-serif text-[#10151F] leading-relaxed focus:outline-none" />
+                </div>
+              ) : (
+                <p className="text-base sm:text-lg font-serif text-[#10151F] leading-relaxed whitespace-pre-wrap font-normal">
+                  {note.content}
+                </p>
+              )}
             </div>
           ))
         )}

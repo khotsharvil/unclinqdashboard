@@ -21,7 +21,8 @@ import {
   Tag,
   Activity,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Pencil
 } from 'lucide-react';
 import { Client, SessionRecord } from '../../types';
 import { therapistApi } from '../../api';
@@ -30,6 +31,8 @@ interface SessionsViewProps {
   client: Client;
   selectedSessionId?: string | null;
   onUpdateTherapistObservation?: (sessionId: string, observations: string) => void;
+  onUpdateSession?: (updated: SessionRecord) => void;
+  onLogActivity?: (sessionId: string, activity: string, response: string) => void;
   onAddSession?: (newSession: Partial<SessionRecord>) => void;
   onOpenEvidence?: (evidenceGroupId: string) => void;
 }
@@ -40,9 +43,41 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   client,
   selectedSessionId,
   onUpdateTherapistObservation,
+  onUpdateSession,
+  onLogActivity,
   onAddSession,
   onOpenEvidence,
 }) => {
+  // Inline edit of a session card's fields (free-text; no fixed schema). draft is a
+  // deep copy of the session being edited; Save writes the whole record back.
+  const [editCardId, setEditCardId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<any>(null);
+  const startEditCard = (s: SessionRecord) => { setEditCardId(s.id); setDraft(JSON.parse(JSON.stringify(s))); };
+  const cancelEditCard = () => { setEditCardId(null); setDraft(null); };
+  const saveEditCard = () => {
+    if (draft && onUpdateSession) {
+      if (typeof draft.__agreedItems === 'string') {
+        draft.afterTransition = draft.afterTransition || {};
+        draft.afterTransition.agreedActionItems = draft.__agreedItems.split('\n').map((x: string) => x.trim()).filter(Boolean);
+        delete draft.__agreedItems;
+      }
+      onUpdateSession(draft as SessionRecord);
+    }
+    setEditCardId(null); setDraft(null);
+  };
+  // Small helpers to update nested draft fields immutably.
+  const dset = (path: string, val: string) => setDraft((d: any) => {
+    const n = { ...d };
+    if (path === 'summaryWhatDiscussed') { n.duringWork = { ...(n.duringWork || {}) }; n.duringWork.whatDiscussed = val; }
+    else if (path === 'therapeuticWork') { n.duringWork = { ...(n.duringWork || {}) }; n.duringWork.therapeuticWork = val; }
+    else if (path === 'therapeuticDetails') { n.duringWork = { ...(n.duringWork || {}) }; n.duringWork.therapeuticDetails = val; }
+    else if (path === 'clientResponse') { n.duringWork = { ...(n.duringWork || {}) }; n.duringWork.clientResponse = val; }
+    else if (path === 'clientResponseNuance') { n.duringWork = { ...(n.duringWork || {}) }; n.duringWork.clientResponseNuance = val; }
+    else if (path === 'agreedAction') { n.afterTransition = { ...(n.afterTransition || {}) }; n.afterTransition.agreedAction = val; }
+    else if (path === 'agreedItems') { n.__agreedItems = val; }
+    return n;
+  });
+  const fieldCls = 'w-full p-2.5 bg-white border border-[#0D9488] rounded-lg text-[13px] sm:text-sm text-[#10151F] leading-relaxed focus:outline-none';
   // Navigation state: null means showing timeline list, or a specific session ID to view full workspace
   const [activeSessionId, setActiveSessionId] = useState<string | null>(selectedSessionId || null);
   const [filterType, setFilterType] = useState<SessionFilter>('all');
@@ -230,6 +265,28 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               <Clock className="w-3.5 h-3.5 text-[#0D9488]" />
               {activeSession.duration || '45 min'}
             </span>
+          </div>
+        </div>
+
+        {/* Your notes on this session — editable free-text (no fixed fields) */}
+        <div className="p-5 sm:p-6 bg-white rounded-2xl border border-[#ECEFF3] space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="u-eyebrow">Your notes on this session</span>
+            {savedSuccess === activeSession.id && (
+              <span className="text-xs text-[#0F766E] font-medium flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Saved</span>
+            )}
+          </div>
+          <textarea
+            rows={4}
+            value={editingObservations[activeSession.id] ?? activeSession.therapistObservations ?? ''}
+            onChange={(e) => handleObservationChange(activeSession.id, e.target.value)}
+            placeholder="Write anything about this session, in your own words — reflections, what stood out, what to pick up next time. No format needed."
+            className="w-full p-3.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-sm text-[#10151F] leading-relaxed placeholder-[#9AA4B2] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors"
+          />
+          <div className="flex justify-end">
+            <button onClick={() => handleSaveObservations(activeSession.id)} className="u-btn-primary text-sm">
+              <Check className="w-4 h-4" /> Save notes
+            </button>
           </div>
         </div>
 
@@ -638,13 +695,68 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => setActiveSessionId(session.id)}
-                      className="inline-flex items-center space-x-1.5 text-[13px] font-medium text-[#0F766E] hover:text-[#0D9488] transition-colors cursor-pointer group"
-                    >
-                      <span>View session</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                    <div className="flex items-center gap-4">
+                      {onUpdateSession && (
+                        <button
+                          onClick={() => (editCardId === session.id ? cancelEditCard() : startEditCard(session))}
+                          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#6B7686] hover:text-[#0F766E] transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>{editCardId === session.id ? 'Close' : 'Edit'}</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setActiveSessionId(session.id)}
+                        className="inline-flex items-center space-x-1.5 text-[13px] font-medium text-[#0F766E] hover:text-[#0D9488] transition-colors cursor-pointer group"
+                      >
+                        <span>View session</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Inline edit — free-text boxes BELOW the content, every field editable */}
+                  {editCardId === session.id && draft && (
+                    <div className="mt-4 pt-4 border-t border-[#F2F5F8] space-y-3">
+                      <p className="u-eyebrow">Edit this session — free text, no fixed format</p>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">What was discussed</label>
+                        <textarea rows={3} className={fieldCls} value={draft.duringWork?.whatDiscussed || ''} onChange={(e) => dset('summaryWhatDiscussed', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Therapeutic work</label>
+                        <input className={fieldCls} value={draft.duringWork?.therapeuticWork || ''} onChange={(e) => dset('therapeuticWork', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Therapeutic detail</label>
+                        <textarea rows={2} className={fieldCls} value={draft.duringWork?.therapeuticDetails || ''} onChange={(e) => dset('therapeuticDetails', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Client response</label>
+                        <textarea rows={2} className={fieldCls} value={draft.duringWork?.clientResponse || ''} onChange={(e) => dset('clientResponse', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Context</label>
+                        <textarea rows={2} className={fieldCls} value={draft.duringWork?.clientResponseNuance || ''} onChange={(e) => dset('clientResponseNuance', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Agreed action</label>
+                        <input className={fieldCls} value={draft.afterTransition?.agreedAction || ''} onChange={(e) => dset('agreedAction', e.target.value)} /></div>
+                      <div><label className="text-[11px] text-[#6B7686] mb-1 block">Action items (one per line)</label>
+                        <textarea rows={3} className={fieldCls} value={draft.__agreedItems ?? (draft.afterTransition?.agreedActionItems || []).join('\n')} onChange={(e) => dset('agreedItems', e.target.value)} /></div>
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button onClick={cancelEditCard} className="u-btn-ghost text-sm">Cancel</button>
+                        <button onClick={saveEditCard} className="u-btn-primary text-sm"><Check className="w-4 h-4" /> Save</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* In-session activities + client response (auto-detected when recorded; add more here) */}
+                  <InSessionActivities session={session} onLog={onLogActivity} onUpdate={onUpdateSession} />
+
+                  {/* Free-text notes — below the content, not inside the fields */}
+                  <div className="mt-4 pt-4 border-t border-[#F2F5F8] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="u-eyebrow">Your notes on this session</span>
+                      {savedSuccess === session.id && <span className="text-xs text-[#0F766E] font-medium flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Saved</span>}
+                    </div>
+                    <textarea rows={3}
+                      value={editingObservations[session.id] ?? session.therapistObservations ?? ''}
+                      onChange={(e) => handleObservationChange(session.id, e.target.value)}
+                      placeholder="Write anything about this session, in your own words…"
+                      className="w-full p-3 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-sm text-[#10151F] leading-relaxed placeholder-[#9AA4B2] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors" />
+                    <div className="flex justify-end">
+                      <button onClick={() => handleSaveObservations(session.id)} className="u-btn-ghost text-sm"><Check className="w-4 h-4 text-[#0D9488]" /> Save notes</button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -802,6 +914,74 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
         </div>
       )}
 
+    </div>
+  );
+};
+
+// In-session activities & client response — auto-detected on the recorded path
+// (session-understanding extracts the intervention + response); therapists can log
+// more here. Each entry feeds the same `intervention` memory the engine reads.
+const InSessionActivities: React.FC<{
+  session: SessionRecord;
+  onLog?: (sessionId: string, activity: string, response: string) => void;
+  onUpdate?: (updated: SessionRecord) => void;
+}> = ({ session, onLog, onUpdate }) => {
+  const list: { activity: string; response: string }[] = ((session as any).inSessionActivities) || [];
+  const [activity, setActivity] = useState('');
+  const [response, setResponse] = useState('');
+  const auto = session.duringWork?.therapeuticWork
+    ? { activity: session.duringWork.therapeuticWork, response: session.duringWork.clientResponse || '' }
+    : null;
+
+  const add = () => {
+    if (!activity.trim() || !onLog) return;
+    onLog(session.id, activity.trim(), response.trim());
+    setActivity(''); setResponse('');
+  };
+  const removeAt = (i: number) => {
+    if (!onUpdate) return;
+    onUpdate({ ...(session as any), inSessionActivities: list.filter((_, idx) => idx !== i) } as SessionRecord);
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-[#F2F5F8] space-y-3">
+      <span className="u-eyebrow">In-session activities &amp; client response</span>
+
+      {auto && (
+        <div className="rounded-lg bg-[#F1FAF9] border border-[#D6EDEA] p-3 text-[13px]">
+          <span className="inline-block text-[10px] font-semibold text-[#0F766E] uppercase tracking-wide mb-1">Auto-detected from session</span>
+          <p className="text-[#10151F] font-medium">{auto.activity}</p>
+          {auto.response && <p className="text-[#6B7686] italic mt-1">“{auto.response}”</p>}
+        </div>
+      )}
+
+      {list.map((a, i) => (
+        <div key={i} className="rounded-lg border border-[#ECEFF3] p-3 text-[13px] flex items-start justify-between gap-2">
+          <div>
+            <p className="text-[#10151F] font-medium">{a.activity}</p>
+            {a.response && <p className="text-[#6B7686] italic mt-1">“{a.response}”</p>}
+          </div>
+          {onUpdate && (
+            <button onClick={() => removeAt(i)} aria-label="Remove" className="text-[#9AA4B2] hover:text-[#B0332F] shrink-0"><X className="w-4 h-4" /></button>
+          )}
+        </div>
+      ))}
+
+      {onLog && (
+        <div className="space-y-2 rounded-lg bg-[#FBFCFD] border border-dashed border-[#DCE2EA] p-3">
+          <input value={activity} onChange={(e) => setActivity(e.target.value)}
+            placeholder="Activity you ran in session (e.g. breathing exercise, thought record, role-play)…"
+            className="w-full px-3 py-2 bg-white border border-[#ECEFF3] rounded-lg text-[13px] text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488]" />
+          <textarea value={response} onChange={(e) => setResponse(e.target.value)} rows={2}
+            placeholder="How the client responded (optional)…"
+            className="w-full px-3 py-2 bg-white border border-[#ECEFF3] rounded-lg text-[13px] text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488]" />
+          <div className="flex justify-end">
+            <button onClick={add} disabled={!activity.trim()} className="u-btn-primary text-sm disabled:opacity-50">
+              <Plus className="w-4 h-4" /> Log activity
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2, Trash2, Calendar, Clock, Check, Sparkles } from 'lucide-react';
+import { Plus, CheckCircle2, Trash2, Calendar, Clock, Check, Sparkles, Pencil, X } from 'lucide-react';
 import { Client, ActionItem } from '../../types';
 
 interface ActionsViewProps {
   client: Client;
   onAddAction?: (newAction: Partial<ActionItem>) => void;
   onUpdateActionStatus?: (actionId: string, status: ActionItem['status']) => void;
+  onUpdateAction?: (actionId: string, patch: Partial<ActionItem>) => void;
   onDeleteAction?: (actionId: string) => void;
 }
 
@@ -13,11 +14,21 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
   client,
   onAddAction,
   onUpdateActionStatus,
+  onUpdateAction,
   onDeleteAction,
 }) => {
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState('Daily');
   const [recentlyAssigned, setRecentlyAssigned] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editFreq, setEditFreq] = useState('');
+
+  const startEdit = (a: ActionItem) => { setEditingId(a.id); setEditTitle(a.title); setEditFreq(a.frequency || ''); };
+  const saveEdit = (id: string) => {
+    if (editTitle.trim() && onUpdateAction) onUpdateAction(id, { title: editTitle.trim(), frequency: editFreq.trim() || undefined });
+    setEditingId(null);
+  };
 
   // Suggestions come ONLY from this client's recorded sessions (the actions that
   // actually surfaced in session) — no hardcoded presets. Already-assigned ones
@@ -172,6 +183,14 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
                       : 'bg-white border-[#ECEFF3] u-card-hover'
                   }`}
                 >
+                  {editingId === action.id ? (
+                    <div className="flex-1 space-y-2">
+                      <input autoFocus value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-[#0D9488] rounded-lg text-sm text-[#10151F] focus:outline-none" />
+                      <input value={editFreq} onChange={(e) => setEditFreq(e.target.value)} placeholder="Frequency (e.g. Daily)"
+                        className="w-full px-3 py-1.5 bg-white border border-[#ECEFF3] rounded-lg text-xs text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488]" />
+                    </div>
+                  ) : (
                   <div className="space-y-1.5">
                     <div className="flex items-center space-x-2.5 flex-wrap">
                       <span className={`text-sm sm:text-base font-medium ${isCompleted ? 'line-through text-[#9AA4B2]' : 'text-[#10151F]'}`}>
@@ -188,31 +207,50 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
                       <span>Assigned: <span className="font-mono">{action.assignedDate}</span></span>
                     </div>
                   </div>
+                  )}
 
                   <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
-                    <button
-                      onClick={() => onUpdateActionStatus && onUpdateActionStatus(
-                        action.id,
-                        isCompleted ? 'in_progress' : 'completed'
-                      )}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1.5 cursor-pointer ${
-                        isCompleted
-                          ? 'bg-white border-[#ECEFF3] text-[#15803D]'
-                          : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:text-[#10151F] hover:border-[#DCE2EA]'
-                      }`}
-                    >
-                      <CheckCircle2 className={`w-3.5 h-3.5 ${isCompleted ? 'text-[#16A34A]' : ''}`} />
-                      <span>{isCompleted ? 'Completed' : 'Mark done'}</span>
-                    </button>
+                    {editingId === action.id ? (
+                      <>
+                        <button onClick={() => saveEdit(action.id)} title="Save"
+                          className="p-1.5 rounded-lg text-[#0F766E] hover:bg-[#F1FAF9] transition-colors cursor-pointer"><Check className="w-4 h-4" /></button>
+                        <button onClick={() => setEditingId(null)} title="Cancel"
+                          className="p-1.5 rounded-lg text-[#9AA4B2] hover:text-[#10151F] transition-colors cursor-pointer"><X className="w-4 h-4" /></button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => onUpdateActionStatus && onUpdateActionStatus(
+                            action.id,
+                            isCompleted ? 'in_progress' : 'completed'
+                          )}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            isCompleted
+                              ? 'bg-white border-[#ECEFF3] text-[#15803D]'
+                              : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:text-[#10151F] hover:border-[#DCE2EA]'
+                          }`}
+                        >
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${isCompleted ? 'text-[#16A34A]' : ''}`} />
+                          <span>{isCompleted ? 'Completed' : 'Mark done'}</span>
+                        </button>
 
-                    {onDeleteAction && (
-                      <button
-                        onClick={() => onDeleteAction(action.id)}
-                        className="p-1.5 rounded-lg text-[#9AA4B2] hover:text-[#E11D48] hover:bg-[#FFF1F2] transition-colors cursor-pointer"
-                        title="Remove action"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        {onUpdateAction && (
+                          <button onClick={() => startEdit(action)} title="Edit action"
+                            className="p-1.5 rounded-lg text-[#9AA4B2] hover:text-[#0F766E] hover:bg-[#F1FAF9] transition-colors cursor-pointer">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+
+                        {onDeleteAction && (
+                          <button
+                            onClick={() => onDeleteAction(action.id)}
+                            className="p-1.5 rounded-lg text-[#9AA4B2] hover:text-[#E11D48] hover:bg-[#FFF1F2] transition-colors cursor-pointer"
+                            title="Remove action"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

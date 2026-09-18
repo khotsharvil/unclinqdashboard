@@ -76,6 +76,11 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     s.pattern ||
     (s.key_event?.trigger ? `Came up: ${s.key_event.trigger}.` : '') ||
     (s.reflection ? `In their words: “${s.reflection}”.` : '') ||
+    // Reflect whatever we have: even a short check-in with no structured event.
+    (s.check_in?.insight ? `Checked in with Emora: ${s.check_in.insight}` : '') ||
+    (s.check_in?.count
+      ? `${s.check_in.count} between-session check-in${s.check_in.count > 1 ? 's' : ''} so far — early days; more will surface as they keep using it.`
+      : '') ||
     'Some between-session activity was captured.';
   // Accurate per-source capture counts (no double-counting). by_source is a map
   // like { emora: 2, journal: 1, voice: 1 }; fall back to the total event count.
@@ -83,9 +88,9 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   b.whatChanged = {
     text: changedText,
     // Repurpose the three count slots as: Emora chats · journal/voice notes · check-ins(reflections).
-    mentionsCount: bySource.emora || 0,
+    mentionsCount: bySource.emora || s.check_in?.count || 0,
     journalCount: (bySource.journal || 0) + (bySource.voice || 0),
-    conversationsCount: s.sources?.reflections || 0,
+    conversationsCount: s.sources?.conversations || s.sources?.reflections || 0,
     momentCount: s.sources?.events || s.event_count || 0,
     bySource,
     evidenceGroupId: 'ev-changed',
@@ -391,7 +396,8 @@ export async function loadRealClient(clientId: string): Promise<Client> {
   journey.milestones = jr.milestones || journey.milestones || [];
   const briefing = br.briefing?.structured || null;
   const latestDate = fmtFull(ov.latest_session?.occurred_at);
-  const hasActivity = (journey.session_count || 0) > 0 || (journey.significant_moments || []).length > 0 || !!briefing;
+  const hasActivity = (journey.session_count || 0) > 0 || (journey.significant_moments || []).length > 0
+    || (journey.events || []).length > 0 || (briefing?.check_in?.count || 0) > 0 || !!briefing;
 
   return {
     id: user.id || clientId,

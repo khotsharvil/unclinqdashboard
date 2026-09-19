@@ -105,12 +105,19 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   if (s.technique_application) {
     b.whatTheyTried = [{ id: 'tech', name: s.technique_application, attempted: 1, completed: 0, clientResponse: '', status: 'mixed' }];
   }
+  // "Last seen" from the most recent moment behind the pattern (backend evidence
+  // refs carry {id, at}). Falls back to the key event's date.
+  const patRefs = (s.evidence?.pattern || s.evidence?.main_trigger || []) as any[];
+  const lastAt = patRefs.map((r) => r.at).filter(Boolean).sort().slice(-1)[0] || s.key_event?.at || null;
   b.observedPattern = {
     text: s.pattern || '',
     observedCount: s.recurrence_count || 0,
-    lastSeen: '',
+    lastSeen: lastAt ? fmtDate(lastAt) : '',
     evidenceGroupId: 'ev-pattern',
-    clinicalNoteSeparateFromObservation: '',
+    // The AI's tentative observation (labelled "AI hypothesis · not a clinical fact").
+    // Was always blank; surface ONLY genuinely AI-derived observed changes here —
+    // never a client-generated theme (that would mislabel provenance).
+    clinicalNoteSeparateFromObservation: journey?.observed_changes?.[0]?.text || '',
   };
   // Worth-exploring + engagement prompt, plain and non-prescriptive.
   const explore: string[] = [];
@@ -144,7 +151,7 @@ const SRC: Record<string, 'Journal' | 'Emora' | 'Check-in' | 'Voice' | 'Exercise
 
 // Build the evidence store so "View supporting moments" resolves to real, dated
 // moments in the client's own words. Every AI claim on the dashboard drills to this.
-function buildEvidenceStore(journey: any): Record<string, any> {
+function buildEvidenceStore(journey: any, structured?: any): Record<string, any> {
   // id → EvidenceItem, from the raw events + significant moments the model carries.
   const byId: Record<string, any> = {};
   for (const e of journey?.events || []) {
@@ -155,21 +162,32 @@ function buildEvidenceStore(journey: any): Record<string, any> {
     if (!m.id) continue;
     byId[m.id] = { id: m.id, date: fmtDate(m.at), source: SRC[m.source] || byId[m.id]?.source || 'Check-in', snippet: m.reflection || m.trigger || 'A significant moment', context: m.share_reason || undefined };
   }
-  const item = (r: any) => byId[r.id] || { id: r.id || Math.random().toString(36).slice(2), date: fmtDate(r.at), source: 'Check-in' as const, snippet: r.trigger || 'A logged moment' };
+  const item = (r: any) => byId[r.id] || { id: r.id || Math.random().toString(36).slice(2), date: fmtDate(r.at), source: SRC[r.source] || 'Check-in' as const, snippet: r.trigger || 'A logged moment' };
   const group = (id: string, title: string, refs: any[]) => ({ id, title, items: (refs || []).map(item) });
 
   const store: Record<string, any> = {};
   const patterns = journey?.patterns || [];
   const changes = journey?.observed_changes || [];
   const sig = journey?.significant_moments || [];
+  // The briefing's OWN evidence refs — these exist even for a single moment (one
+  // between-session event), where journey.patterns/significant_moments don't yet.
+  const ev = structured?.evidence || {};
 
-  store['ev-pattern'] = group('ev-pattern', patterns[0]?.trigger ? `“${patterns[0].trigger}” — supporting moments` : 'Supporting moments', patterns[0]?.evidence || []);
-  store['ev-changed'] = group('ev-changed', 'What changed — supporting moments', (changes.flatMap((c: any) => c.evidence || [])).slice(0, 8));
-  store['ev-discuss'] = group('ev-discuss', 'In the client’s words', sig.slice(0, 5).map((m: any) => ({ id: m.id, at: m.at, trigger: m.trigger })));
+  // Prefer the briefing's evidence refs (present for a single moment) → then the
+  // journey's richer aggregates → then any significant moment as a last resort.
+  store['ev-pattern'] = group('ev-pattern',
+    patterns[0]?.trigger ? `“${patterns[0].trigger}” — supporting moments` : 'Supporting moments',
+    (ev.pattern?.length ? ev.pattern : (patterns[0]?.evidence || [])));
+  store['ev-changed'] = group('ev-changed', 'What changed — supporting moments',
+    (ev.main_trigger?.length ? ev.main_trigger : (changes.flatMap((c: any) => c.evidence || [])).slice(0, 8)));
+  store['ev-discuss'] = group('ev-discuss', 'In the client’s words',
+    (ev.wants_to_discuss?.length ? ev.wants_to_discuss : sig.slice(0, 5).map((m: any) => ({ id: m.id, at: m.at, trigger: m.trigger }))));
   patterns.forEach((p: any, i: number) => { store[`pat-${i}`] = group(`pat-${i}`, p.trigger || p.chain || 'Recurring pattern', p.evidence || []); });
-  // Fallbacks so a group is never totally empty when we do have moments.
+  // Fallbacks so a group is never totally empty when we do have ANY moment.
+  const allEvents = (journey?.events || []).map((e: any) => ({ id: e.id, at: e.occurred_at, trigger: e.trigger, source: e.source }));
   const allSig = sig.map((m: any) => ({ id: m.id, at: m.at, trigger: m.trigger }));
-  for (const k of ['ev-changed', 'ev-discuss', 'ev-pattern']) if (!store[k].items.length) store[k] = group(k, store[k].title, allSig);
+  const fallback = allSig.length ? allSig : allEvents;
+  for (const k of ['ev-changed', 'ev-discuss', 'ev-pattern']) if (!store[k].items.length) store[k] = group(k, store[k].title, fallback);
   return store;
 }
 
@@ -422,7 +440,7 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     sessions: await buildSessions(clientId, journey),
     actions: toActions(ov.exercises),
     notes: toNotes(nt.notes),
-    evidenceStore: buildEvidenceStore(journey),
+    evidenceStore: buildEvidenceStore(journey, briefing),
     assessments: ov.assessments || [],
   };
 }

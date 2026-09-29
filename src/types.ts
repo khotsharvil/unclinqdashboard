@@ -215,6 +215,8 @@ export interface ActionItem {
   clientResponse: string;
   status: 'in_progress' | 'needs_discussion' | 'completed';
   frequency?: string;
+  rationale?: string;
+  reviewNext?: boolean;
 }
 
 export interface TherapistNote {

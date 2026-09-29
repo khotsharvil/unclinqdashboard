@@ -31,7 +31,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
 
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
   const [showAddStepModal, setShowAddStepModal] = useState(false);
-  const [newWeekTitle, setNewWeekTitle] = useState('Week 5');
+  const [newWeekTitle, setNewWeekTitle] = useState('Session 5');
   const [newPhaseTitle, setNewPhaseTitle] = useState('Integration');
   const [newFocus, setNewFocus] = useState('');
   const [newIntervention, setNewIntervention] = useState('');
@@ -44,7 +44,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
     return (
       <div className="max-w-2xl mx-auto mt-4 p-8 rounded-2xl border border-[#ECEFF3] bg-white text-center">
         <p className="text-[15px] font-semibold text-[#10151F]">The journey builds as sessions add up.</p>
-        <p className="text-sm text-[#6B7686] mt-2 leading-relaxed">Once you record a session or {client.name?.split(' ')[0] || 'your client'} logs a few moments between sessions, their week-by-week journey — patterns, what they tried, and how they responded — appears here, drawn from real activity.</p>
+        <p className="text-sm text-[#6B7686] mt-2 leading-relaxed">Once you record a session or {client.name?.split(' ')[0] || 'your client'} logs a few moments between sessions, their session-by-session journey — patterns, what they tried, and how they responded — appears here, drawn from real activity.</p>
       </div>
     );
   }
@@ -187,7 +187,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
             {client.name.split(' ')[0]}’s therapy journey
           </h1>
           <p className="text-[14px] text-[#6B7686]">
-            Week by week — what you’ve worked on together, and what’s changing.
+            Session by session — what you’ve worked on together, and what’s changing.
           </p>
         </div>
 
@@ -357,7 +357,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
                   <div className="mt-4 pt-4 border-t border-[#F2F5F8]">
                     <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9AA4B2] mb-1.5">How far you’ve come</div>
                     <p className="text-[13px] leading-[1.55] flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <span className="text-[#9AA4B2]">Week 1 · {steps[0].observedChange.from}</span>
+                      <span className="text-[#9AA4B2]">{steps[0].week} · {steps[0].observedChange.from}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-[#0D9488] shrink-0" />
                       <span className="text-[#10151F] font-medium">{steps[activeStep].week} · {steps[activeStep].observedChange.to || steps[activeStep].observedChange.summary}</span>
                     </p>
@@ -372,7 +372,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
                     className="text-[13px] font-medium text-[#6B7686] hover:text-[#0F766E] flex items-center gap-1 disabled:opacity-40 disabled:cursor-default cursor-pointer transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    <span>Earlier week</span>
+                    <span>Previous</span>
                   </button>
                   <span className="text-[11px] font-mono text-[#9AA4B2] tabular-nums">{activeStep + 1} / {steps.length}</span>
                   <button
@@ -380,7 +380,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
                     disabled={activeStep === steps.length - 1}
                     className="text-[13px] font-medium text-[#6B7686] hover:text-[#0F766E] flex items-center gap-1 disabled:opacity-40 disabled:cursor-default cursor-pointer transition-colors"
                   >
-                    <span>Next week</span>
+                    <span>Next</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -390,7 +390,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
 
           {/* Hint */}
           {!activePt && (
-            <p className="text-center text-[12px] text-[#9AA4B2] mt-3">Tap any stop to open that week · earlier weeks show how far you’ve come</p>
+            <p className="text-center text-[12px] text-[#9AA4B2] mt-3">Tap any stop to open that session · earlier sessions show how far you’ve come</p>
           )}
         </div>
       </section>
@@ -401,7 +401,7 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
           <div className="fixed inset-0 bg-[#10151F]/40 backdrop-blur-xs" onClick={() => setShowAddStepModal(false)} />
           <div className="relative w-full max-w-lg bg-white border border-[#ECEFF3] rounded-2xl p-6 sm:p-7 space-y-5 animate-in fade-in zoom-in-95 duration-150 shadow-[0_20px_60px_rgba(16,21,31,0.18)]">
             <div>
-              <h2 className="text-xl font-serif font-semibold text-[#10151F]">Add a weekly update</h2>
+              <h2 className="text-xl font-serif font-semibold text-[#10151F]">Add a session update</h2>
               <p className="text-[13px] text-[#6B7686] mt-0.5">
                 Capture what you focused on, what was tried, and what changed.
               </p>
@@ -410,13 +410,13 @@ export const JourneyView: React.FC<JourneyViewProps> = ({
             <form onSubmit={handleCreateStep} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">Week label</label>
+                  <label className="block text-[13px] font-medium text-[#3A4453] mb-1.5">Session label</label>
                   <input
                     type="text"
                     required
                     value={newWeekTitle}
                     onChange={(e) => setNewWeekTitle(e.target.value)}
-                    placeholder="e.g. Week 5"
+                    placeholder="e.g. Session 5"
                     className="w-full px-3.5 py-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
                   />
                 </div>

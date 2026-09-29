@@ -185,7 +185,12 @@ export const therapistApi = {
   deleteMemory: (id: string, memId: string) => api.del(`/therapist/clients/${id}/memory/${memId}`),
 
   // Actions / exercises — assign + edit + delete.
-  assignExercise: (id: string, description: string) => api.post(`/therapist/clients/${id}/exercises`, { description }),
+  assignExercise: (id: string, description: string, extra?: { rationale?: string; cadence?: string; review_next?: boolean }) =>
+    api.post(`/therapist/clients/${id}/exercises`, { description, ...(extra || {}) }),
+  // AI-tailored, client-specific action suggestions (grounded in real context).
+  // modalities = the therapist's ways of working, so ideas fit their approach.
+  suggestActions: (id: string, modalities?: string[]): Promise<{ suggestions: { title: string; cadence: string; rationale: string }[] }> =>
+    api.post(`/therapist/clients/${id}/suggest-actions`, { modalities }),
   editExercise: (id: string, exId: string, body: { description?: string; status?: string }) =>
     api.patch(`/therapist/clients/${id}/exercises/${exId}`, body),
   deleteExercise: (id: string, exId: string) => api.del(`/therapist/clients/${id}/exercises/${exId}`),

@@ -285,11 +285,14 @@ function toActions(exercises: any[]): ActionItem[] {
   return (exercises || []).map((e: any): ActionItem => ({
     id: e.id,
     title: e.description || 'Action',
-    assignedDate: '',
+    assignedDate: e.assigned_at ? fmtDate(e.assigned_at) : '',
     attempts: 0,
     lastAttemptedDate: e.feedback ? 'Reported' : 'Pending',
     clientResponse: e.feedback || 'Pending client attempt.',
     status: ACTION_STATUS[e.status] || 'in_progress',
+    frequency: e.cadence || undefined,
+    rationale: e.rationale || undefined,
+    reviewNext: !!e.review_next,
   }));
 }
 

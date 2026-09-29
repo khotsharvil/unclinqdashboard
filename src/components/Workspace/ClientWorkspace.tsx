@@ -108,7 +108,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
       frequency: newAction.frequency,
     };
     onUpdateClient({ ...client, actions: [action, ...client.actions] });
-    if (real && action.title) therapistApi.assignExercise(real, action.title).catch(() => {});
+    if (real && action.title) therapistApi.assignExercise(real, action.title, { rationale: action.rationale, cadence: action.frequency, review_next: action.reviewNext }).catch(() => {});
   };
 
   const handleUpdateAction = (actionId: string, patch: Partial<ActionItem>) => {

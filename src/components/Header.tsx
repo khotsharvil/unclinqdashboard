@@ -295,9 +295,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <p className="text-[13px] font-medium text-[#10151F] group-hover:text-[#0F766E] transition-colors">
                     {therapistProfile?.name || 'Dr. Elena Vance'}
                   </p>
-                  <p className="text-[11px] text-[#9AA4B2] font-mono">
-                    {therapistProfile?.licenseNumber || 'PSY-884920'}
-                  </p>
+                  {therapistProfile?.licenseNumber && (
+                    <p className="text-[11px] text-[#9AA4B2] font-mono">{therapistProfile.licenseNumber}</p>
+                  )}
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-[#9AA4B2] hidden lg:block" />
               </button>

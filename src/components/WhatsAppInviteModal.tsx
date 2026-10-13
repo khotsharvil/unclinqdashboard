@@ -17,6 +17,11 @@ interface Props {
 }
 
 // 10-digit Indian mobile → 91XXXXXXXXXX; anything else as typed (digits only).
+// The therapist's last-used language pre-fills the next invite (most of a caseload shares one).
+const LAST_LANG_KEY = 'unclinq_last_invite_language';
+const readLastLanguage = () => { try { return localStorage.getItem(LAST_LANG_KEY) || ''; } catch { return ''; } };
+const rememberLanguage = (code: string) => { try { localStorage.setItem(LAST_LANG_KEY, code); } catch { /* private mode */ } };
+
 const toWaDigits = (raw: string) => {
   const d = raw.replace(/\D/g, '');
   return d.length === 10 ? `91${d}` : d;
@@ -35,7 +40,7 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
 
   useEffect(() => {
     if (isOpen) {
-      setName(''); setPhone(''); setLanguage(''); setGender('');
+      setName(''); setPhone(''); setLanguage(readLastLanguage()); setGender('');
       setRel({ relationship_type: 'new', valid: true });
       setSending(false); setError(''); setResult(null); setCopied(false);
     }
@@ -46,6 +51,19 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
   const digits = phone.replace(/\D/g, '');
   const canSend = name.trim().length > 1 && (digits.length === 10 || digits.length >= 11) && !!language && rel.valid && !sending;
   const firstName = name.trim().split(/\s+/)[0] || 'there';
+
+  // Say what's missing instead of leaving a silently greyed-out button.
+  const missing = [
+    name.trim().length > 1 ? null : 'their name',
+    digits.length === 10 || digits.length >= 11 ? null : 'a WhatsApp number',
+    language ? null : 'the language they speak',
+  ].filter(Boolean) as string[];
+  const missingHint = missing.length
+    ? 'Add ' + (missing.length > 1 ? missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1] : missing[0]) + ' to send.'
+    : '';
+  // A stray click outside must not throw away what was typed.
+  const dirty = !result && (name.trim() !== '' || phone.trim() !== '');
+  const closeFromBackdrop = () => { if (!dirty && !sending) onClose(); };
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +79,7 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
         seed_context: rel.seed_context,
         expires_in_days: 14,
       });
+      rememberLanguage(language);
       setResult({ wa_status: res.invitation?.wa_status, join_link: res.invitation?.join_link });
       onSent?.();
     } catch (err: any) {
@@ -88,7 +107,7 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="fixed inset-0 bg-[#10151F]/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-[#10151F]/30 backdrop-blur-sm" onClick={closeFromBackdrop} />
       <div className="relative w-full max-w-lg bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_20px_60px_rgba(16,21,31,0.18)] overflow-hidden my-8">
         <div className="p-6 border-b border-[#F2F5F8] flex items-start justify-between gap-4">
           <div>
@@ -133,16 +152,19 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
 
             {error && <p className="text-[13px] text-[#B42318] bg-[#FEF3F2] border border-[#FECDCA] rounded-lg px-3 py-2">{error}</p>}
 
-            <div className="flex items-center justify-between gap-3 pt-1">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-3 bg-white border-t border-[#F2F5F8] flex items-center justify-between gap-3">
               {onUseEmail ? (
-                <button type="button" onClick={onUseEmail} className="text-[13px] text-[#6B7686] hover:text-[#0F766E] underline underline-offset-2 cursor-pointer">
+                <button type="button" onClick={onUseEmail} className="shrink-0 whitespace-nowrap text-[13px] text-[#6B7686] hover:text-[#0F766E] underline underline-offset-2 cursor-pointer">
                   Invite by email instead
                 </button>
               ) : <span />}
+              <div className="flex items-center gap-3">
+              {missingHint && !sending && <span className="text-[12px] text-[#9AA4B2] text-right">{missingHint}</span>}
               <button type="submit" disabled={!canSend}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0F766E] text-white text-[15px] font-medium px-5 py-2.5 hover:bg-[#0B5E58] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                className="shrink-0 whitespace-nowrap inline-flex items-center gap-2 rounded-xl bg-[#0F766E] text-white text-[15px] font-medium px-5 py-2.5 hover:bg-[#0B5E58] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
                 <Send className="w-4 h-4" /> {sending ? 'Sending…' : 'Send invite'}
               </button>
+              </div>
             </div>
           </form>
         ) : (

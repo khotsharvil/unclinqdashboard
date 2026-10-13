@@ -434,6 +434,10 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     portalStatus: 'active',
     status: 'active',
     briefingStatus: hasActivity ? 'ready' : 'no_activity',
+    whatsapp: ov.wa_status
+      ? { status: ov.wa_status === 'opted_out' ? 'paused' : 'joined', lastMessageAt: ov.wa_last_message_at || null }
+      : undefined,
+    joinedAt: ov.consented_at || null,
     nextSession: ov.next_session_at
       ? { display: fmtDate(ov.next_session_at), time: '', date: String(ov.next_session_at).slice(0, 10), isToday: false }
       : null,

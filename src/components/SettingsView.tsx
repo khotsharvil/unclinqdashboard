@@ -33,11 +33,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [separateInterpretation, setSeparateInterpretation] = useState(true);
 
   // Local editable profile state
-  const [name, setName] = useState(therapistProfile?.name || 'Dr. Elena Vance');
-  const [specialization, setSpecialization] = useState(therapistProfile?.specialization || 'Clinical Psychology, CBT & Somatic Integration');
-  const [licenseNumber, setLicenseNumber] = useState(therapistProfile?.licenseNumber || 'PSY-884920-CA');
-  const [email, setEmail] = useState(therapistProfile?.email || 'dr.vance@mindfulpractice.health');
-  const [practiceName, setPracticeName] = useState(therapistProfile?.practiceName || 'Mindful Practice Clinic');
+  const [name, setName] = useState(therapistProfile?.name || '');
+  const [specialization, setSpecialization] = useState(therapistProfile?.specialization || '');
+  const [licenseNumber, setLicenseNumber] = useState(therapistProfile?.licenseNumber || '');
+  const [email, setEmail] = useState(therapistProfile?.email || '');
+  const [practiceName, setPracticeName] = useState(therapistProfile?.practiceName || '');
   const [logoUrl, setLogoUrl] = useState<string | undefined>(therapistProfile?.logoUrl);
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -254,7 +254,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex items-center space-x-2.5">
               <Lock className="w-5 h-5 text-[#0D9488]" />
               <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">
-                Data Privacy & HIPAA Isolation
+                Data privacy
               </h2>
             </div>
             <p className="text-base sm:text-lg font-serif text-[#3A4453] leading-relaxed font-normal">

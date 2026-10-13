@@ -57,7 +57,14 @@ export default function App() {
     return {
       ...INITIAL_THERAPIST_PROFILE,
       name: u?.name || '',
+      // Real accounts never inherit the sample identity (license, contact, specialties).
+      title: '',
       credentials: '',
+      licenseNumber: '',
+      email: u?.email || '',
+      phone: '',
+      modalities: [],
+      specializations: [],
       practiceName: 'Unclinq',
     };
   });
@@ -714,7 +721,7 @@ export default function App() {
           <span>{therapistProfile.practiceName} · {therapistProfile.name}</span>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0D9488]" />
-            <span className="text-[#0F766E] font-medium">HIPAA Vault Active</span>
+            <span className="text-[#0F766E] font-medium">Encrypted · consent-based</span>
           </div>
         </div>
       </footer>

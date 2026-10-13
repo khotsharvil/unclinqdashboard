@@ -90,7 +90,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             Client directory
           </h1>
           <p className="text-sm text-[#6B7686] mt-2.5 max-w-xl">
-            Longitudinal therapy loops, portal invitations, and next-session briefings.
+            Everyone you're seeing, their invites, and what's ready before each session.
           </p>
         </div>
 
@@ -208,7 +208,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     </p>
                     {!isPending && (
                       <p className="text-[12px] text-[#C3CBD6] mt-0.5">
-                        <span className="font-mono tabular-nums">{client.sessions.length}</span> sessions
+                        <span className="tabular-nums">{client.sessions.length}</span> sessions
                       </p>
                     )}
                   </div>

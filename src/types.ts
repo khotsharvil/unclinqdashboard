@@ -260,6 +260,7 @@ export interface Client {
   //   declined    – they tapped "Not now"
   //   joined      – on WhatsApp with Emora
   //   paused      – they sent STOP
+  joinedAt?: string | null;     // when the client consented / joined
   whatsapp?: {
     status: 'invited' | 'send_failed' | 'started' | 'declined' | 'joined' | 'paused';
     inviteId?: string;

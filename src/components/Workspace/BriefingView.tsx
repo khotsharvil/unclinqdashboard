@@ -130,6 +130,62 @@ const Point: React.FC<{
   </section>
 );
 
+const ago = (iso?: string | null) => {
+  if (!iso) return '';
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return mins <= 1 ? 'just now' : `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  const days = Math.round(hrs / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+};
+
+const NewClientState: React.FC<{
+  client: Client;
+  onNavigateToTab: BriefingViewProps['onNavigateToTab'];
+}> = ({ client, onNavigateToTab }) => {
+  const first = client.name.split(/\s+/)[0] || 'They';
+  const wa = client.whatsapp;
+  const status = wa?.status === 'paused'
+    ? `${first} paused WhatsApp messages (sent STOP). They can send START anytime to resume.`
+    : wa
+      ? `${first} is on WhatsApp${client.joinedAt ? ` · joined ${ago(client.joinedAt)}` : ''}${wa.lastMessageAt ? ` · last message ${ago(wa.lastMessageAt)}` : ''}.`
+      : `${first} has joined${client.joinedAt ? ` ${ago(client.joinedAt)}` : ''}.`;
+  const step = 'flex items-start gap-3 text-left w-full rounded-xl border border-[#ECEFF3] bg-white px-4 py-3 hover:border-[#0D9488] hover:bg-[#F8FCFB] transition-colors cursor-pointer';
+  return (
+    <div className="space-y-5 w-full">
+      <div className="rounded-2xl border border-[#ECEFF3] bg-white px-6 sm:px-8 py-7 space-y-5">
+        <div>
+          <h3 className="text-[19px] font-serif font-semibold text-[#10151F]">No briefing yet</h3>
+          <p className="text-[14px] text-[#3A4453] mt-1">{status}</p>
+          <p className="text-[14px] text-[#6B7686] mt-1">
+            Their first briefing appears here once there's something to go on: a recorded session, or a few days of check-ins and chats with Emora.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <button className={step} onClick={() => onNavigateToTab('actions')}>
+            <span className="font-mono text-[11px] text-[#0D9488] mt-1">01</span>
+            <span>
+              <span className="block text-[14px] font-medium text-[#10151F]">Assign something for this week</span>
+              <span className="block text-[12px] text-[#6B7686]">{wa ? 'It reaches them on WhatsApp, with Done / Not yet buttons.' : 'They see it in their app.'}</span>
+            </span>
+          </button>
+          <button className={step} onClick={() => onNavigateToTab('sessions')}>
+            <span className="font-mono text-[11px] text-[#0D9488] mt-1">02</span>
+            <span>
+              <span className="block text-[14px] font-medium text-[#10151F]">Record or upload your next session</span>
+              <span className="block text-[12px] text-[#6B7686]">The briefing builds from it automatically.</span>
+            </span>
+          </button>
+        </div>
+      </div>
+      <div className="rounded-2xl border border-[#ECEFF3] bg-white overflow-hidden">
+        <AssessmentsCard client={client} />
+      </div>
+    </div>
+  );
+};
+
 export const BriefingView: React.FC<BriefingViewProps> = ({
   client,
   onOpenEvidence,
@@ -142,6 +198,12 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
     const group = evidenceStore[groupId] || { id: groupId, title: fallbackTitle, items: [] };
     onOpenEvidence(group);
   };
+
+  // Brand-new client: nothing to synthesise yet. Say where they are and what to do,
+  // instead of rendering five empty briefing sections.
+  if (client.briefingStatus === 'no_activity' && !client.briefingId && client.sessions.length === 0) {
+    return <NewClientState client={client} onNavigateToTab={onNavigateToTab} />;
+  }
 
   return (
     <div className="space-y-5 w-full">

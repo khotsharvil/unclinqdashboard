@@ -213,8 +213,6 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
           <ChevronLeft className="w-4 h-4" />
           <span>All clients</span>
         </button>
-
-        <span className="text-xs font-mono text-[#9AA4B2]">{client.id}</span>
       </div>
 
       {/* Client Header Card */}
@@ -250,7 +248,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                     {client.lastSession && (
                       <span>Last <span className="text-[#10151F] font-medium">{client.lastSession.display}</span></span>
                     )}
-                    <span>Sessions <span className="font-mono text-[#10151F] font-medium tabular-nums">{client.sessions.length}</span></span>
+                    <span>Sessions <span className="text-[#10151F] font-medium tabular-nums">{client.sessions.length}</span></span>
                   </div>
                   <EmoraVoiceLine client={client} />
                 </div>

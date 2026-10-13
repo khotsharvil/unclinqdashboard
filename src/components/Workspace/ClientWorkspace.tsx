@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Sparkles, 
   Clock, 
@@ -12,7 +12,7 @@ import {
   Mic
 } from 'lucide-react';
 import { SessionRecorder } from './SessionRecorder';
-import { therapistApi } from '../../api';
+import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS } from '../../api';
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
 import { BriefingView } from './BriefingView';
@@ -20,6 +20,56 @@ import { JourneyView } from './JourneyView';
 import { SessionsView } from './SessionsView';
 import { ActionsView } from './ActionsView';
 import { NotesView } from './NotesView';
+
+// "Emora speaks to them in Marathi · as a woman" — therapist-set, editable in place.
+// Language + gender shape every reply (in Hindi/Marathi, words change with gender).
+const isRealId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
+const EmoraVoiceLine: React.FC<{ client: Client }> = ({ client }) => {
+  const [profile, setProfile] = useState<{ language: string | null; gender: string | null } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ language: '', gender: '' });
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setProfile(null); setEditing(false);
+    if (!isRealId(client.id)) return;
+    therapistApi.clientProfile(client.id).then((p) => setProfile({ language: p.language, gender: p.gender })).catch(() => {});
+  }, [client.id]);
+  if (!profile) return null;
+  const lang = CLIENT_LANGUAGES.find((l) => l.code === profile.language)?.label.split(' · ')[0];
+  const gen = CLIENT_GENDERS.find((g) => g.code === profile.gender)?.label;
+  const save = async () => {
+    setSaving(true);
+    try {
+      const r: any = await therapistApi.updateClientProfile(client.id, { language: draft.language || null, gender: draft.gender || null });
+      setProfile({ language: r.language, gender: r.gender }); setEditing(false);
+    } finally { setSaving(false); }
+  };
+  const sel = 'rounded-lg border border-[#E2E7EE] bg-white px-2 py-1 text-[13px] text-[#10151F] focus:outline-none focus:border-[#0F766E]';
+  if (editing) return (
+    <div className="flex flex-wrap items-center gap-2 text-[13px] text-[#6B7686]">
+      <span>Emora speaks</span>
+      <select className={sel} value={draft.language} onChange={(e) => setDraft({ ...draft, language: e.target.value })}>
+        <option value="">their language (auto)</option>
+        {CLIENT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+      </select>
+      <select className={sel} value={draft.gender} onChange={(e) => setDraft({ ...draft, gender: e.target.value })}>
+        <option value="">gender not set</option>
+        {CLIENT_GENDERS.map((g) => <option key={g.code} value={g.code}>{g.label}</option>)}
+      </select>
+      <button onClick={save} disabled={saving} className="rounded-lg bg-[#0F766E] text-white px-3 py-1 text-[13px] font-medium cursor-pointer disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+      <button onClick={() => setEditing(false)} className="text-[13px] text-[#9AA4B2] hover:text-[#10151F] cursor-pointer">Cancel</button>
+    </div>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 text-[13px] text-[#6B7686]">
+      {client.whatsapp && <span className="text-[#0F766E] font-medium">{client.whatsapp.status === 'paused' ? 'WhatsApp paused (STOP)' : 'On WhatsApp'}</span>}
+      {client.whatsapp && <span className="text-[#C3CBD6]">·</span>}
+      <span>Emora speaks {lang ? <b className="font-medium text-[#10151F]">{lang}</b> : 'their language'}{gen ? <> · <b className="font-medium text-[#10151F]">{gen}</b></> : <> · <span className="text-[#B45309]">gender not set</span></>}</span>
+      <button onClick={() => { setDraft({ language: profile.language || '', gender: profile.gender || '' }); setEditing(true); }}
+        className="text-[#0F766E] hover:underline underline-offset-2 cursor-pointer">Edit</button>
+    </div>
+  );
+};
 
 interface ClientWorkspaceProps {
   client: Client;
@@ -202,6 +252,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                     )}
                     <span>Sessions <span className="font-mono text-[#10151F] font-medium tabular-nums">{client.sessions.length}</span></span>
                   </div>
+                  <EmoraVoiceLine client={client} />
                 </div>
               </div>
 

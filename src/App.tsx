@@ -25,6 +25,7 @@ import { getUser, authApi, therapistApi, invitationsApi } from './api';
 import { loadRealClient, toClientStub, toActivities, toScheduledSessions, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
+import { WhatsAppInviteModal } from './components/WhatsAppInviteModal';
 
 export default function App() {
   // Demo can deep-link to the onboarding walkthrough: add ?onboarding or #onboarding.
@@ -64,6 +65,10 @@ export default function App() {
 
   // Invite Client Modal
   const [isInviteClientOpen, setIsInviteClientOpen] = useState(false);
+  // New clients are added on WhatsApp (name + number + language → they tap Start).
+  // The older email/code invite stays reachable from that modal and for re-inviting.
+  const [isWaInviteOpen, setIsWaInviteOpen] = useState(false);
+  const [caseloadVersion, setCaseloadVersion] = useState(0);
   const [inviteTargetClient, setInviteTargetClient] = useState<Client | undefined>(undefined);
   const [isSeedHistoryOpen, setIsSeedHistoryOpen] = useState(false);
 
@@ -78,6 +83,7 @@ export default function App() {
 
   // Open invite client modal, optionally preselecting an existing client
   const handleOpenInviteModal = (client?: Client) => {
+    if (!client && !DEMO) { setIsWaInviteOpen(true); return; }
     setInviteTargetClient(client);
     setIsInviteClientOpen(true);
   };
@@ -535,7 +541,7 @@ export default function App() {
         credentials: pr.credentials || prev.credentials,
       }));
     }).catch(() => {});
-  }, [authed, onboarded]);
+  }, [authed, onboarded, caseloadVersion]);
 
   // Real caseload: replace the mock clients with the therapist's actual connected
   // clients when there are any (feeds the SAME list + tabs; nothing is restyled).
@@ -544,7 +550,14 @@ export default function App() {
     if (DEMO || !authed || !onboarded) return;
     therapistApi.clients().then((r: any) => {
       const rows = r?.clients || [];
-      if (!rows.length) return;
+      if (!rows.length) {
+        // No joined clients yet: still show anyone already invited (else keep the demo list).
+        invitationsApi.list().then((ir: any) => {
+          const pending = pendingInviteStubs(ir?.invitations || []);
+          if (pending.length) setClients(pending);
+        }).catch(() => {});
+        return;
+      }
       const stubs = rows.map(toClientStub);
       setSelectedClient(stubs[0]);
       // Home feed + Calendar, derived from the same rows (no extra fetch).
@@ -662,6 +675,14 @@ export default function App() {
           setIsOnboardingOpen(false);
           handleOpenInviteModal();
         }}
+      />
+
+      {/* Add client on WhatsApp (default) */}
+      <WhatsAppInviteModal
+        isOpen={isWaInviteOpen}
+        onClose={() => setIsWaInviteOpen(false)}
+        onSent={() => setCaseloadVersion((v) => v + 1)}
+        onUseEmail={() => { setIsWaInviteOpen(false); setInviteTargetClient(undefined); setIsInviteClientOpen(true); }}
       />
 
       {/* Invite Client to Portal Modal */}

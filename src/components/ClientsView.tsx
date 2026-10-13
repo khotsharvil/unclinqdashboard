@@ -1,7 +1,48 @@
 import React, { useState } from 'react';
-import { Search, ArrowRight, UserPlus } from 'lucide-react';
+import { Search, ArrowRight, UserPlus, MessageCircle, RotateCw, Check } from 'lucide-react';
 import { Client } from '../types';
 import { getClientAvatarTheme } from '../utils/theme';
+import { invitationsApi } from '../api';
+
+// WhatsApp journey → chip label + tone, and the one-line explanation under the name.
+const WA_CHIP: Record<string, { label: string; cls: string; hint: string }> = {
+  invited:     { label: 'Invited on WhatsApp', cls: 'text-[#0F766E] bg-[#F1FAF9] border-[#CDEBE7]', hint: 'Waiting for them to tap Start' },
+  started:     { label: 'Opened, not started', cls: 'text-[#B45309] bg-[#FEF3E2] border-[#F5D9A8]', hint: 'They replied but haven’t tapped Start yet' },
+  declined:    { label: 'Said “not now”', cls: 'text-[#6B7686] bg-[#F4F6F8] border-[#E2E7EE]', hint: 'They can reply START whenever they’re ready' },
+  send_failed: { label: 'Couldn’t deliver', cls: 'text-[#B42318] bg-[#FEF3F2] border-[#FECDCA]', hint: 'Share the join link from your WhatsApp' },
+  joined:      { label: 'WhatsApp', cls: 'text-[#0F766E] bg-[#F1FAF9] border-[#CDEBE7]', hint: '' },
+  paused:      { label: 'Paused (STOP)', cls: 'text-[#6B7686] bg-[#F4F6F8] border-[#E2E7EE]', hint: '' },
+};
+
+// Share link + Resend for a pending WhatsApp invite (clicks never open the row).
+const InviteActions: React.FC<{ client: Client }> = ({ client }) => {
+  const wa = client.whatsapp;
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  if (!wa?.inviteId) return null;
+  const first = client.name.split(' ')[0] || 'there';
+  const share = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!wa.joinLink) return;
+    const text = `Hi ${first}, I've set up Unclinq for support between our sessions. Tap this link and press send to start: ${wa.joinLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  };
+  const resend = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setState('sending');
+    try { const r = await invitationsApi.resend(wa.inviteId!); setState(r.wa_status === 'sent' ? 'sent' : 'failed'); }
+    catch { setState('failed'); }
+  };
+  const btn = 'inline-flex items-center gap-1.5 rounded-lg border border-[#E2E7EE] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#3A4453] hover:bg-[#F8FAFB] cursor-pointer';
+  return (
+    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+      {wa.joinLink && <button className={btn} onClick={share} title="Send the join link from your own WhatsApp"><MessageCircle className="w-3.5 h-3.5 text-[#25D366]" /> Share link</button>}
+      <button className={btn} onClick={resend} disabled={state === 'sending'} title="Send the WhatsApp invite again">
+        {state === 'sent' ? <Check className="w-3.5 h-3.5 text-[#0F766E]" /> : <RotateCw className={`w-3.5 h-3.5 ${state === 'sending' ? 'animate-spin' : ''}`} />}
+        {state === 'sent' ? 'Sent' : state === 'failed' ? 'Try link' : 'Resend'}
+      </button>
+    </div>
+  );
+};
 
 interface ClientsViewProps {
   clients: Client[];
@@ -142,16 +183,24 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                       {isNeedsAttention && !isPending && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#D97706] shrink-0" title="Needs attention" />
                       )}
-                      {isPending && (
+                      {client.whatsapp ? (
+                        <span className={`text-[11px] font-medium border rounded-full px-2 py-0.5 shrink-0 ${WA_CHIP[client.whatsapp.status]?.cls || ''}`}>
+                          {WA_CHIP[client.whatsapp.status]?.label || 'WhatsApp'}
+                        </span>
+                      ) : isPending && (
                         <span className="text-[11px] font-medium text-[#B45309] bg-[#FEF3E2] border border-[#F5D9A8] rounded-full px-2 py-0.5 shrink-0">
                           Invitation pending
                         </span>
                       )}
                     </div>
                     <p className="text-[13px] text-[#9AA4B2] truncate mt-0.5">
-                      {isPending ? (client.email || 'Waiting for the client to accept') : client.briefing.observedPattern.text}
+                      {isPending
+                        ? (client.whatsapp ? WA_CHIP[client.whatsapp.status]?.hint : (client.email || 'Waiting for the client to accept'))
+                        : client.briefing.observedPattern.text}
                     </p>
                   </div>
+
+                  {isPending && client.whatsapp && <InviteActions client={client} />}
 
                   <div className="hidden sm:block text-right shrink-0 w-40">
                     <p className="text-[13px] text-[#6B7686] truncate">

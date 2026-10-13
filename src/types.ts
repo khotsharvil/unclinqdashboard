@@ -253,6 +253,21 @@ export interface Client {
   contactEmail?: string;
   contactPhone?: string;
   portalStatus?: 'active' | 'invited' | 'not_invited';
+  // WhatsApp channel: where this client is in the journey (chip in the caseload).
+  //   invited     – setup message sent, waiting for them to tap Start
+  //   send_failed – Unclinq couldn't message them; share the join link instead
+  //   started     – they replied but haven't tapped Start yet
+  //   declined    – they tapped "Not now"
+  //   joined      – on WhatsApp with Emora
+  //   paused      – they sent STOP
+  whatsapp?: {
+    status: 'invited' | 'send_failed' | 'started' | 'declined' | 'joined' | 'paused';
+    inviteId?: string;
+    joinLink?: string | null;
+    lastMessageAt?: string | null;
+  };
+  language?: string | null;
+  gender?: string | null;
   invitationSentDate?: string;
   invitationToken?: string;
   status: ClientStatus;

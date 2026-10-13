@@ -314,9 +314,14 @@ export function toClientStub(row: any): Client {
     id: row.client_id || row.id,
     name: row.name || 'Client',
     avatarInitials: initials(row.name),
-    email: row.email,
-    contactEmail: row.email,
+    email: row.email || undefined,
+    contactEmail: row.email || undefined,
     portalStatus: 'active',
+    whatsapp: row.wa_status
+      ? { status: row.wa_status === 'opted_out' ? 'paused' : 'joined', lastMessageAt: row.wa_last_message_at || null }
+      : undefined,
+    language: row.language || null,
+    gender: row.gender || null,
     status: (row.open_signals > 0 ? 'needs_attention' : 'active'),
     briefingStatus: row.new_activity_since_briefing ? 'new_activity' : (row.latest_briefing_at ? 'ready' : 'no_activity'),
     nextSession: row.next_session_at
@@ -504,6 +509,14 @@ export function pendingInviteStubs(invitations: any[]): Client[] {
         avatarInitials: initials(name),
         email: i.client_email,
         portalStatus: 'invited',
+        whatsapp: i.channel === 'whatsapp'
+          ? {
+              status: ({ sent: 'invited', send_failed: 'send_failed', started: 'started', declined: 'declined', joined: 'joined' } as const)[i.wa_status as 'sent'] || 'invited',
+              inviteId: i.id,
+              joinLink: i.join_link || null,
+            }
+          : undefined,
+        language: i.client_language || null,
         status: 'upcoming',
         briefingStatus: 'pending',
         nextSession: null,

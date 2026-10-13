@@ -145,10 +145,38 @@ export const invitationsApi = {
     expires_in_days?: number;
     relationship_type?: 'new' | 'ongoing';
     seed_context?: SeedContext;
+    // WhatsApp invite: a phone number makes the backend send the invite on WhatsApp
+    // and return a join link (wa.me) the therapist can also share themselves.
+    client_phone?: string;
+    client_language?: string;
+    client_gender?: string;
   }) => api.post('/invitations', data),
   list: () => api.get('/invitations'),
   revoke: (id: string) => api.post(`/invitations/${id}/revoke`),
+  resend: (id: string): Promise<{ wa_status: string; wa_error?: string | null; join_link?: string | null }> =>
+    api.post(`/invitations/${id}/resend`, {}),
 };
+
+// Languages a client can use with Emora (code = the language code the backend expects).
+export const CLIENT_LANGUAGES: { code: string; label: string }[] = [
+  { code: 'hi-IN', label: 'Hindi · हिन्दी' },
+  { code: 'mr-IN', label: 'Marathi · मराठी' },
+  { code: 'en-IN', label: 'English' },
+  { code: 'bn-IN', label: 'Bengali · বাংলা' },
+  { code: 'te-IN', label: 'Telugu · తెలుగు' },
+  { code: 'ta-IN', label: 'Tamil · தமிழ்' },
+  { code: 'gu-IN', label: 'Gujarati · ગુજરાતી' },
+  { code: 'ur-IN', label: 'Urdu · اردو' },
+  { code: 'kn-IN', label: 'Kannada · ಕನ್ನಡ' },
+  { code: 'od-IN', label: 'Odia · ଓଡ଼ିଆ' },
+  { code: 'ml-IN', label: 'Malayalam · മലയാളം' },
+];
+export const CLIENT_GENDERS: { code: string; label: string }[] = [
+  { code: 'female', label: 'Woman' },
+  { code: 'male', label: 'Man' },
+  { code: 'non_binary', label: 'Non-binary' },
+  { code: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
 
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
@@ -177,6 +205,10 @@ export const therapistApi = {
   editNote: (noteId: string, body: string) => api.patch(`/therapist/notes/${noteId}`, { body }),
   deleteNote: (noteId: string) => api.del(`/therapist/notes/${noteId}`),
   profile: () => api.get('/therapist/profile'),
+  // How Emora addresses a client: language + gender (therapist-set; never guessed).
+  clientProfile: (id: string): Promise<{ gender: string | null; language: string | null }> => api.get(`/therapist/clients/${id}/profile`),
+  updateClientProfile: (id: string, body: { gender?: string | null; language?: string | null }) =>
+    api.patch(`/therapist/clients/${id}/profile`, body),
 
   // Journey/memory items — free-text add + inline edit + soft-delete (everything editable).
   addMemory: (id: string, content: string, kind?: string) => api.post(`/therapist/clients/${id}/memory`, { content, kind }),

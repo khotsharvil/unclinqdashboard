@@ -11,3 +11,6 @@ coverage/
 # Investor demo capture rig + rendered videos (large; lives here but is a
 # separate concern from the dashboard app — never ship it in the deploy).
 demo/
+
+# Launch-video renders (large) — never ship in the deploy.
+brag-output/

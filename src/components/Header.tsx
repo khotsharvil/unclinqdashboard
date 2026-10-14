@@ -10,14 +10,15 @@ import {
   UserPlus,
   Compass,
   CheckCircle2,
-  Calendar
+  Calendar,
+  ShieldCheck
 } from 'lucide-react';
 import { Client, TherapistProfile } from '../types';
 import { InstallAppButton } from './InstallAppButton';
 
 interface HeaderProps {
-  currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar';
-  setCurrentView: (view: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar') => void;
+  currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin';
+  setCurrentView: (view: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin') => void;
   selectedClient: Client | null;
   onSelectClient: (client: Client, tab?: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
   clients: Client[];
@@ -26,6 +27,7 @@ interface HeaderProps {
   therapistProfile?: TherapistProfile;
   onOpenOnboarding?: () => void;
   onOpenInviteClient?: () => void;
+  isAdmin?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -39,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   therapistProfile,
   onOpenOnboarding,
   onOpenInviteClient,
+  isAdmin,
 }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -376,6 +379,16 @@ export const Header: React.FC<HeaderProps> = ({
                         <SettingsIcon className="w-4 h-4 text-[#6B7686]" />
                         <span>Practice settings</span>
                       </button>
+
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setProfileDropdownOpen(false); setCurrentView('admin'); }}
+                          className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2.5 text-[#10151F] hover:bg-[#F4F6F9] transition-colors cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-[#6B7686]" />
+                          <span>Admin: add therapist</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>

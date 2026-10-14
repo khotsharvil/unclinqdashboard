@@ -17,11 +17,12 @@ import { ClientsView } from './components/ClientsView';
 import { CalendarView } from './components/CalendarView';
 import { ClientWorkspace } from './components/Workspace/ClientWorkspace';
 import { SettingsView } from './components/SettingsView';
+import { AdminView } from './components/AdminView';
 import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getUser, authApi, therapistApi, invitationsApi } from './api';
+import { getUser, authApi, therapistApi, invitationsApi, consoleApi } from './api';
 import { loadRealClient, toClientStub, toActivities, toScheduledSessions, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
@@ -41,7 +42,7 @@ export default function App() {
   // (DEMO mode seeds the sample caseload so a backendless preview looks full.)
   const [clients, setClients] = useState<Client[]>(DEMO_CASELOAD);
   const [activities, setActivities] = useState<ActivityItem[]>(DEMO ? INITIAL_ACTIVITIES : []);
-  const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin'>('home');
   const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>(DEMO ? generateInitialSessions(DEMO_CASELOAD) : []);
 
   // Selected client for Workspace
@@ -69,6 +70,7 @@ export default function App() {
     };
   });
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Invite Client Modal
   const [isInviteClientOpen, setIsInviteClientOpen] = useState(false);
@@ -578,6 +580,12 @@ export default function App() {
   }, [authed, onboarded]);
 
   // Auth gate — the dashboard now runs against the real B2B2C backend.
+  // Admin menu only for the Unclinq team (backend checks ADMIN_EMAILS; anyone else gets 403).
+  useEffect(() => {
+    if (DEMO || !authed) { setIsAdmin(false); return; }
+    consoleApi.me().then(() => setIsAdmin(true)).catch(() => setIsAdmin(false));
+  }, [authed]);
+
   if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;
   // Therapist workspace-setup onboarding (first login only).
   if (!onboarded) return <TherapistOnboarding therapistName={getUser()?.name} onDone={() => setOnboarded(true)} />;
@@ -599,6 +607,7 @@ export default function App() {
         setActiveTab={setActiveWorkspaceTab}
         therapistProfile={therapistProfile}
         onOpenInviteClient={() => handleOpenInviteModal()}
+        isAdmin={isAdmin}
       />
 
       {/* Main Content Area */}
@@ -658,6 +667,8 @@ export default function App() {
             onSeeded={reloadSelectedClient}
           />
         )}
+
+        {currentView === 'admin' && isAdmin && <AdminView />}
 
         {currentView === 'settings' && (
           <SettingsView

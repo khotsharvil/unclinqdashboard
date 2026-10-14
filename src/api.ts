@@ -178,6 +178,13 @@ export const CLIENT_GENDERS: { code: string; label: string }[] = [
   { code: 'prefer_not_to_say', label: 'Prefer not to say' },
 ];
 
+// Unclinq-team admin (Admin tab). The backend only answers for ADMIN_EMAILS accounts.
+export const consoleApi = {
+  me: () => api.get('/console/me'),
+  therapists: () => api.get('/console/therapists'),
+  addTherapist: (b: { name: string; email: string; seats?: number }) => api.post('/console/therapists', b),
+};
+
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
   overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),

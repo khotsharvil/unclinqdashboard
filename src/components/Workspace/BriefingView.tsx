@@ -232,6 +232,12 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
         <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8] animate-in fade-in duration-150">
           <Point index="01" label="What changed">
             <p className="text-[19px] font-serif text-[#10151F] leading-[1.55]">{briefing.whatChanged.text}</p>
+            {(briefing as any).wellbeing?.summary && (
+              <p className="mt-3 text-[14px] text-[#4B5563] leading-relaxed">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0D9488] mr-2">Mood &amp; sleep</span>
+                {(briefing as any).wellbeing.summary}
+              </p>
+            )}
           </Point>
           <Point index="02" label="Wants to discuss">
             <blockquote className="text-[19px] font-serif italic text-[#10151F] leading-[1.5]">
@@ -280,6 +286,12 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
                 );
               })()}
             </button>
+            {(briefing as any).wellbeing?.summary && (
+              <p className="mt-3 text-[14px] text-[#4B5563] leading-relaxed">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0D9488] mr-2">Mood &amp; sleep</span>
+                {(briefing as any).wellbeing.summary}
+              </p>
+            )}
           </Point>
 
           {/* 02 — Wants to discuss */}

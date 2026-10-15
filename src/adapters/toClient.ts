@@ -121,6 +121,10 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   };
   // Worth-exploring + engagement prompt, plain and non-prescriptive.
   const explore: string[] = [];
+  // One-tap mood + sleep logs from WhatsApp: shown under "What changed"; anything
+  // concerning (e.g. several short nights) leads the exploration prompts.
+  (b as any).wellbeing = s.wellbeing || null;
+  for (const f of s.wellbeing?.flags || []) explore.push(f);
   if (s.why_flagged) explore.push(`Client chose to bring this in: "${s.why_flagged}"`);
   if (s.engagement?.direction === 'quieter') explore.push('Quieter than their recent baseline — may be worth gently exploring.');
   if (s.engagement?.assigned_not_started > 0) explore.push('An assigned action hasn’t been picked up yet.');

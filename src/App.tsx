@@ -47,7 +47,7 @@ export default function App() {
 
   // Selected client for Workspace
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'journey' | 'sessions' | 'actions' | 'notes'>('briefing');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats'>('briefing');
 
   // Therapist Profile & Onboarding. Seed the real logged-in identity immediately
   // (from the cached user) so the header never flashes the sample "Dr. Elena Vance"
@@ -386,7 +386,7 @@ export default function App() {
   // Select client from search or list
   const handleSelectClient = (
     client: Client,
-    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' = 'briefing'
+    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats' = 'briefing'
   ) => {
     // Pending invitations have no account yet — don't open a workspace for them.
     if ((client as any)._pending) return;

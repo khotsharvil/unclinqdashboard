@@ -9,7 +9,8 @@ import {
   GitCommit,
   Mail,
   UserPlus,
-  Mic
+  Mic,
+  MessageCircle
 } from 'lucide-react';
 import { SessionRecorder } from './SessionRecorder';
 import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS } from '../../api';
@@ -20,6 +21,7 @@ import { JourneyView } from './JourneyView';
 import { SessionsView } from './SessionsView';
 import { ActionsView } from './ActionsView';
 import { NotesView } from './NotesView';
+import { ChatsView } from './ChatsView';
 
 // "Emora speaks to them in Marathi · as a woman" — therapist-set, editable in place.
 // Language + gender shape every reply (in Hindi/Marathi, words change with gender).
@@ -73,8 +75,8 @@ const EmoraVoiceLine: React.FC<{ client: Client }> = ({ client }) => {
 
 interface ClientWorkspaceProps {
   client: Client;
-  activeTab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes';
-  setActiveTab: (tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
+  activeTab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats';
+  setActiveTab: (tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats') => void;
   onOpenEvidence: (evidenceGroup: EvidenceGroup) => void;
   onBackToClients: () => void;
   onUpdateClient: (updatedClient: Client) => void;
@@ -97,7 +99,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   const isReal = !!(client as any)._real;
 
   const handleNavigateToTab = (
-    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes', 
+    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats', 
     sessionId?: string
   ) => {
     if (sessionId) {
@@ -296,6 +298,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                 { id: 'sessions', label: 'Sessions', icon: FileText, count: client.sessions.length },
                 { id: 'actions', label: 'Assign action', icon: CheckCircle2, count: client.actions.length },
                 { id: 'notes', label: 'Notes', icon: Lock, count: client.notes.length },
+                ...(isReal ? [{ id: 'chats', label: 'Chats', icon: MessageCircle }] : []),
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -372,6 +375,8 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             onDeleteNote={handleDeleteNote}
           />
         )}
+
+        {activeTab === 'chats' && <ChatsView client={client} />}
       </div>
 
       {recording && (

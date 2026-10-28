@@ -189,6 +189,9 @@ export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
   overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),
   journey: (id: string) => api.get(`/therapist/clients/${id}/journey`),
+  // Full Emora chats — only returned when the client has turned sharing on (WhatsApp SHARE).
+  chats: (id: string) => api.get(`/therapist/clients/${id}/chats`),
+  requestChats: (id: string) => api.post(`/therapist/clients/${id}/chats/request`, {}),
   briefing: (id: string) => api.get(`/therapist/clients/${id}/briefing`),
   // Pilot metric B — one-tap "did this briefing help you prepare?" (note only after 👎).
   briefingFeedback: (id: string, body: { briefing_id: string; useful: boolean; note?: string }) =>

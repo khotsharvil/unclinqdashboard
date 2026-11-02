@@ -17,7 +17,22 @@ export interface EvidenceGroup {
   items: EvidenceItem[];
 }
 
+// One homework item as the briefing shows it (backend briefing.structured.homework).
+export interface BriefingHomework {
+  id: string;
+  description: string;
+  status: 'done' | 'partly' | 'not_yet' | 'not_started';
+  updates: number;
+  latest: { at: string; words: string | null; summary: string | null }[];
+  feedback?: string | null;
+}
+
 export interface BriefingData {
+  thisWeek?: string | null;        // AI summary across the whole period
+  since?: string | null;           // period start (ISO)
+  whatHelped?: string | null;      // session-prep answer: what helped
+  homework?: BriefingHomework[] | null;
+  sources?: { chats: number; moments: number; mood: number; sleep: number };
   whatChanged: {
     text: string;
     mentionsCount: number;

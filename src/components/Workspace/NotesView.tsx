@@ -83,7 +83,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 bg-white rounded-2xl border border-[#ECEFF3]">
         <div>
           <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">
-            Therapist Vault Notes
+            Notes
           </h2>
           <p className="text-[13px] sm:text-sm text-[#6B7686] mt-1">
             Private clinical impressions, supervision items, and confidential hypotheses
@@ -106,10 +106,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
         </div>
         <div>
           <span className="u-eyebrow block">
-            End-to-End Therapist Vault
+            Private notes
           </span>
           <span className="text-[#6B7686] text-[13px] sm:text-sm">
-            Stored in your private clinician vault — never visible or accessible to the client.
+            Only you can see these. Encrypted at rest; never shown to the client.
           </span>
         </div>
       </div>
@@ -178,7 +178,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               type="submit"
               className="u-btn-primary"
             >
-              Save to vault
+              Save note
             </button>
           </div>
         </form>

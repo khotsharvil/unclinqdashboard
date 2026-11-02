@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft, Upload, Check, Copy, ShieldCheck, Repeat, Mic, MessageCircle, Sparkles, FileText } from 'lucide-react';
-import { api, invitationsApi, inviteLink, legalUrl } from '../api';
-import { InviteRelationship, InvitePayload } from './InviteRelationship';
+import { ArrowRight, ArrowLeft, Upload, Check, ShieldCheck, Repeat, Mic, MessageCircle, Sparkles, FileText } from 'lucide-react';
+import { api, legalUrl } from '../api';
 
 /*
  * Therapist workspace-setup onboarding (THERAPIST_ONBOARDING.md).
  * Runs after account creation, gated on onboarding_completed === false.
  * Writes real data: PATCH /therapist/profile, POST /therapist/certificate,
- * POST /invitations. The therapist never creates the client's account —
- * they generate a code the client redeems.
+ * POST /auth/consent. Clients are added afterwards on WhatsApp (Home → Add client).
  */
-const STEPS = ['welcome', 'professional', 'certificate', 'practice', 'how', 'privacy', 'invite', 'done'];
+const STEPS = ['welcome', 'professional', 'certificate', 'practice', 'how', 'privacy', 'done'];
 
 // DEMO: no backend — fields are optional and every step just advances.
 const DEMO = (import.meta as any).env?.VITE_DEMO === '1';
@@ -43,11 +41,6 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
   const [certStatus, setCertStatus] = useState<'none' | 'pending'>('none');
 
   // invite
-  const [invName, setInvName] = useState('');
-  const [invEmail, setInvEmail] = useState('');
-  const [code, setCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [rel, setRel] = useState<InvitePayload>({ relationship_type: 'new', valid: true });
 
   // Consent (recorded server-side before the therapist can proceed).
   const [agreeDpa, setAgreeDpa] = useState(false);
@@ -93,26 +86,6 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
       await api.postForm('/therapist/certificate', fd);
       setCertName(file.name); setCertStatus('pending');
     } catch { setError('Could not upload the certificate.'); }
-    finally { setBusy(false); }
-  }
-
-  async function generateInvite() {
-    if (rel.relationship_type === 'ongoing' && !rel.valid) {
-      setError('For an ongoing client, add a summary, current focus, and at least one goal.');
-      return;
-    }
-    if (DEMO) { setCode('DEMO24'); return; } // demo: no backend, show a sample code
-    setBusy(true); setError('');
-    try {
-      const res = await invitationsApi.create({
-        client_name: invName.trim(),
-        client_email: invEmail.trim(),
-        expires_in_days: 7,
-        relationship_type: rel.relationship_type,
-        seed_context: rel.seed_context,
-      });
-      setCode(res.invitation.code);
-    } catch (e: any) { setError(e?.data?.error || 'Could not create invitation.'); }
     finally { setBusy(false); }
   }
 
@@ -215,9 +188,9 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                 <div className="absolute left-[19px] top-6 bottom-14 w-0.5 bg-gradient-to-b from-[#0D9488]/40 via-[#0D9488]/25 to-[#0D9488]/10" />
                 {[
                   { Icon: Mic, title: 'Session', sub: 'You meet — record it from your dashboard, with consent.' },
-                  { Icon: MessageCircle, title: 'The client’s week', sub: 'Journal · Emora · actions, between sessions.' },
-                  { Icon: Sparkles, title: 'AI synthesis', sub: 'Woven into Therapy Moments — evidence, not noise.' },
-                  { Icon: FileText, title: 'Next-session briefing', sub: 'One-minute, evidence-backed prep.' },
+                  { Icon: MessageCircle, title: 'The client’s week, on WhatsApp', sub: 'Homework you set, a one-tap sleep and mood check, and chats with Emora.' },
+                  { Icon: Sparkles, title: 'Pulled together for you', sub: 'Only from what they actually shared, with their own words kept.' },
+                  { Icon: FileText, title: 'Next-session briefing', sub: 'A one-minute read before you see them.' },
                 ].map(({ Icon, title, sub }, i) => (
                   <div key={i} className="relative flex items-start gap-3.5 pb-4">
                     <div className="w-10 h-10 rounded-xl bg-[#F1FAF9] border border-[#CCE9E6] flex items-center justify-center shrink-0 z-10">
@@ -260,31 +233,9 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
             </Card>
           )}
 
-          {step === 'invite' && (
-            <Card eyebrow="Invite your first client" title="Invite your first client.">
-              {!code ? (
-                <>
-                  <Field label="Client name" value={invName} onChange={setInvName} placeholder="Maya Lin" />
-                  <Field label="Client email" value={invEmail} onChange={setInvEmail} placeholder="client@example.com" />
-                  <div className="mt-3"><InviteRelationship onChange={setRel} /></div>
-                  <p className="text-xs text-[#9AA4B2] mt-2">They create their own account with the code (we email it if you add their address) — you never create it for them.</p>
-                </>
-              ) : (
-                <div className="bg-[#F1FAF9] border border-[#CCE9E6] rounded-xl p-5 text-center">
-                  <p className="u-eyebrow">Invitation code</p>
-                  <p className="text-3xl font-mono font-semibold tracking-[0.25em] text-[#10151F] my-2">{code}</p>
-                  <button onClick={() => { navigator.clipboard?.writeText(inviteLink(code)); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="u-btn-ghost text-xs mx-auto">
-                    {copied ? <Check className="w-3.5 h-3.5 text-[#0F766E]" /> : <Copy className="w-3.5 h-3.5 text-[#6B7686]" />}<span>{copied ? 'Copied link' : 'Copy invitation link'}</span>
-                  </button>
-                  <p className="text-[11px] text-[#6B7686] mt-3">{invName || 'Your client'} will appear as “Invitation pending” until they finish onboarding.</p>
-                </div>
-              )}
-            </Card>
-          )}
-
           {step === 'done' && (
             <Card eyebrow="You’re set" title="Your workspace is ready.">
-              <p className="text-sm text-[#6B7686]">Briefing, Sessions and Journey become more useful as your clients use Unclinq between sessions.</p>
+              <p className="text-sm text-[#6B7686]">Add your first client from Home → <span className="font-medium text-[#10151F]">Add client</span>: their name and WhatsApp number. They get a message from Unclinq and tap Start.</p>
             </Card>
           )}
               {error && <p className="text-xs text-[#B0332F] mt-4">{error}</p>}
@@ -304,15 +255,6 @@ export const TherapistOnboarding: React.FC<{ onDone: () => void; therapistName?:
                   <button onClick={next} disabled={busy} className="u-btn-ghost"><span>Skip for now</span></button>
                   <button onClick={() => saveProfile()} disabled={busy} className="u-btn-primary"><span>Save & continue</span><ArrowRight className="w-4 h-4" /></button>
                 </>
-              ) : step === 'invite' ? (
-                code ? (
-                  <button onClick={next} className="u-btn-primary"><span>Continue</span><ArrowRight className="w-4 h-4" /></button>
-                ) : (
-                  <>
-                    <button onClick={next} className="u-btn-ghost"><span>Skip for now</span></button>
-                    <button onClick={generateInvite} disabled={busy || !invName.trim() || !invEmail.trim() || !rel.valid} className="u-btn-primary"><span>Generate invitation</span><ArrowRight className="w-4 h-4" /></button>
-                  </>
-                )
               ) : step === 'privacy' ? (
                 <button
                   onClick={async () => {

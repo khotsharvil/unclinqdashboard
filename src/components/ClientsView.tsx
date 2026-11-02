@@ -5,6 +5,17 @@ import { getClientAvatarTheme } from '../utils/theme';
 import { invitationsApi } from '../api';
 
 // WhatsApp journey → chip label + tone, and the one-line explanation under the name.
+// "2h ago", "3 days ago" for the last thing the client did between sessions.
+const ago = (iso?: string | null) => {
+  if (!iso) return '';
+  const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000);
+  if (h < 1) return 'just now';
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+};
+const at = (c: Client) => (c.nextSession?.at ? new Date(c.nextSession.at).getTime() : Infinity);
+
 const WA_CHIP: Record<string, { label: string; cls: string; hint: string }> = {
   invited:     { label: 'Invited on WhatsApp', cls: 'text-[#0F766E] bg-[#F1FAF9] border-[#CDEBE7]', hint: 'Waiting for them to tap Start' },
   started:     { label: 'Opened, not started', cls: 'text-[#B45309] bg-[#FEF3E2] border-[#F5D9A8]', hint: 'They replied but haven’t tapped Start yet' },
@@ -46,7 +57,7 @@ const InviteActions: React.FC<{ client: Client }> = ({ client }) => {
 
 interface ClientsViewProps {
   clients: Client[];
-  onSelectClient: (client: Client, tab?: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
+  onSelectClient: (client: Client, tab?: 'briefing' | 'sessions' | 'actions' | 'notes') => void;
   onOpenInviteClient?: (client?: Client) => void;
 }
 
@@ -56,27 +67,21 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
   onOpenInviteClient,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'needs_attention' | 'inactive'>('all');
-  const [sortBy] = useState<'next_session' | 'name' | 'sessions_count'>('next_session');
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'needs_attention'>('all');
 
+  // Needs attention first, then the soonest next session, then everyone else.
   const filteredClients = clients
     .filter(client => {
-      const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.briefing.observedPattern.text.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchesSearch) return false;
-
-      if (filter === 'all') return true;
+      if (!client.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
       if (filter === 'needs_attention') return client.status === 'needs_attention';
-      if (filter === 'upcoming') return client.nextSession !== null;
-      if (filter === 'inactive') return client.status === 'inactive';
+      if (filter === 'upcoming') return !!client.nextSession;
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'sessions_count') return b.sessions.length - a.sessions.length;
-      if (a.status === 'needs_attention' && b.status !== 'needs_attention') return -1;
-      if (b.status === 'needs_attention' && a.status !== 'needs_attention') return 1;
-      return 0;
+      const na = a.status === 'needs_attention' ? 0 : 1, nb = b.status === 'needs_attention' ? 0 : 1;
+      if (na !== nb) return na - nb;
+      const ta = at(a), tb = at(b);
+      return ta === tb ? 0 : ta < tb ? -1 : 1;
     });
 
   return (
@@ -101,7 +106,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             className="u-btn-primary self-start sm:self-auto"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Invite client</span>
+            <span>Add client</span>
           </button>
         )}
       </div>
@@ -113,7 +118,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
           <input
             id="clients-search-input"
             type="text"
-            placeholder="Search by name or clinical theme…"
+            placeholder="Search clients"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#ECEFF3] rounded-xl text-sm text-[#10151F] placeholder-[#9AA4B2] focus:outline-none focus:border-[#0D9488] transition-colors"
@@ -121,7 +126,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
         </div>
 
         <div className="flex items-center gap-1 self-start sm:self-auto overflow-x-auto max-w-full">
-          {(['all', 'upcoming', 'needs_attention', 'inactive'] as const).map((tab) => (
+          {(['all', 'upcoming', 'needs_attention'] as const).map((tab) => (
             <button
               key={tab}
               id={`filter-tab-${tab}`}
@@ -145,16 +150,16 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
             {clients.length === 0 ? (
               <>
                 <p className="text-lg font-serif text-[#10151F]">No clients yet.</p>
-                <p className="text-sm text-[#6B7686] mt-1.5 mb-5">Invite your first client — they’ll get a code to connect and start sharing between-session context.</p>
+                <p className="text-sm text-[#6B7686] mt-1.5 mb-5">Add your first client with their name and WhatsApp number. They get a message from Unclinq and tap Start.</p>
                 <button
-                  onClick={() => onOpenInviteClient()}
+                  onClick={() => onOpenInviteClient?.()}
                   className="inline-flex items-center gap-2 text-[13px] px-4 py-2 rounded-lg bg-[#0D9488] text-white font-medium cursor-pointer"
                 >
-                  Invite a client
+                  Add client
                 </button>
               </>
             ) : (
-              <p className="text-base font-serif text-[#6B7686]">No clients match your filter criteria.</p>
+              <p className="text-base font-serif text-[#6B7686]">No clients match.</p>
             )}
           </div>
         ) : (
@@ -196,7 +201,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
                     <p className="text-[13px] text-[#9AA4B2] truncate mt-0.5">
                       {isPending
                         ? (client.whatsapp ? WA_CHIP[client.whatsapp.status]?.hint : (client.email || 'Waiting for the client to accept'))
-                        : client.briefing.observedPattern.text}
+                        : ((client as any).lastActivityAt ? `Active ${ago((client as any).lastActivityAt)}` : 'No activity yet')}
                     </p>
                   </div>
 
@@ -204,12 +209,10 @@ export const ClientsView: React.FC<ClientsViewProps> = ({
 
                   <div className="hidden sm:block text-right shrink-0 w-40">
                     <p className="text-[13px] text-[#6B7686] truncate">
-                      {isPending ? 'Invite sent' : (client.nextSession ? client.nextSession.display : 'Not scheduled')}
+                      {isPending ? 'Invite sent' : (client.nextSession ? `Next ${client.nextSession.display}` : 'No next session')}
                     </p>
-                    {!isPending && (
-                      <p className="text-[12px] text-[#C3CBD6] mt-0.5">
-                        <span className="tabular-nums">{client.sessions.length}</span> sessions
-                      </p>
+                    {!isPending && client.lastSession && (
+                      <p className="text-[12px] text-[#9AA4B2] mt-0.5">Last session {client.lastSession.display}</p>
                     )}
                   </div>
 

@@ -190,11 +190,11 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
   return (
     <div className="space-y-6 w-full max-w-4xl mx-auto">
 
-      {/* Assign Action Card */}
+      {/* Assign homework card */}
       <div className="p-6 sm:p-7 bg-white rounded-2xl border border-[#ECEFF3] space-y-5">
         <div className="flex items-center justify-between border-b border-[#F2F5F8] pb-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">Assign Action</h2>
+            <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">Assign homework</h2>
             <p className="text-[13px] sm:text-sm text-[#6B7686] mt-1">
               A practical exercise, routine, or homework for {firstName}
             </p>
@@ -304,7 +304,7 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
             </div>
             <div className="flex items-end">
               <button type="submit" className="u-btn-primary w-full justify-center">
-                <Plus className="w-4 h-4" /><span>Assign Action</span>
+                <Plus className="w-4 h-4" /><span>Assign</span>
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_THERAPIST_PROFILE } from './data/therapistData';
-import { Client, EvidenceGroup, ActivityItem, TherapistProfile, ClientInvitation } from './types';
+import { Client, EvidenceGroup, ActivityItem, TherapistProfile } from './types';
 import { INITIAL_CLIENTS, INITIAL_ACTIVITIES } from './data/mockData';
 import { ADDITIONAL_PRACTICE_CLIENTS } from './data/caseloadClients';
 
@@ -17,13 +17,11 @@ import { ClientWorkspace } from './components/Workspace/ClientWorkspace';
 import { SettingsView } from './components/SettingsView';
 import { AdminView } from './components/AdminView';
 import { EvidencePanel } from './components/EvidencePanel';
-import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
 import { getUser, clearAuth, authApi, therapistApi, invitationsApi, consoleApi, RiskSignal } from './api';
 import { loadRealClient, toClientStub, toActivities, toNextSession, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
-import { InviteClientModal } from './components/InviteClientModal';
 import { WhatsAppInviteModal } from './components/WhatsAppInviteModal';
 
 export default function App() {
@@ -49,7 +47,7 @@ export default function App() {
 
   // Selected client for Workspace
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats'>('briefing');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'briefing' | 'sessions' | 'actions' | 'notes' | 'chats'>('briefing');
 
   // Therapist Profile & Onboarding. Seed the real logged-in identity immediately
   // (from the cached user) so the header never flashes the sample "Dr. Elena Vance"
@@ -71,16 +69,11 @@ export default function App() {
       practiceName: 'Unclinq',
     };
   });
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Invite Client Modal
-  const [isInviteClientOpen, setIsInviteClientOpen] = useState(false);
-  // New clients are added on WhatsApp (name + number + language → they tap Start).
-  // The older email/code invite stays reachable from that modal and for re-inviting.
+  // Clients are added on WhatsApp only (name + number + language → they tap Start).
   const [isWaInviteOpen, setIsWaInviteOpen] = useState(false);
   const [caseloadVersion, setCaseloadVersion] = useState(0);
-  const [inviteTargetClient, setInviteTargetClient] = useState<Client | undefined>(undefined);
   const [isSeedHistoryOpen, setIsSeedHistoryOpen] = useState(false);
 
   // Evidence slide-over panel
@@ -92,144 +85,10 @@ export default function App() {
     group: null,
   });
 
-  // Open invite client modal, optionally preselecting an existing client
-  const handleOpenInviteModal = (client?: Client) => {
-    if (!client && !DEMO) { setIsWaInviteOpen(true); return; }
-    setInviteTargetClient(client);
-    setIsInviteClientOpen(true);
-  };
+  const handleOpenInviteModal = (_client?: Client) => setIsWaInviteOpen(true);
 
   const handleSaveTherapistProfile = (updatedProfile: TherapistProfile) => {
     setTherapistProfile(updatedProfile);
-  };
-
-  const handleSendClientInvitation = (invitation: ClientInvitation) => {
-    // Real accounts: the invite already exists on the backend; just refresh the list.
-    if (!DEMO) { setCaseloadVersion((v) => v + 1); return; }
-    const sessionDay = invitation.sessionDay || 'Thursday';
-    const sessionTime = invitation.sessionTime || '10:00 AM';
-    const duration = invitation.duration || '50 min';
-    const isRecurring = invitation.isRecurring ?? true;
-    const cadence = invitation.recurringCadence || 'weekly';
-    const location = invitation.location || 'in_person';
-    const isToday = sessionDay === 'Thursday';
-    const sessionDate = invitation.sessionDate || '2026-08-27';
-
-    const nextSessionInfo = {
-      display: `${isToday ? 'Today' : sessionDay} · ${sessionTime}`,
-      time: sessionTime,
-      date: sessionDate,
-      isToday,
-      dayOfWeek: sessionDay,
-      duration,
-      isRecurring,
-      cadence,
-      location,
-    };
-
-    const recurringSchedule = isRecurring ? {
-      dayOfWeek: sessionDay,
-      time: sessionTime,
-      duration,
-      cadence,
-      location,
-    } : undefined;
-
-    // Check if client exists
-    const existingIndex = clients.findIndex(
-      c => (invitation.clientId && c.id === invitation.clientId) || c.name.toLowerCase() === invitation.clientName.toLowerCase()
-    );
-
-    if (existingIndex >= 0) {
-      const existingClient = clients[existingIndex];
-      const updated = [...clients];
-      updated[existingIndex] = {
-        ...existingClient,
-        contactEmail: invitation.clientEmail,
-        contactPhone: invitation.clientPhone,
-        portalStatus: 'invited',
-        invitationSentDate: 'Today',
-        nextSession: nextSessionInfo,
-        recurringSchedule: recurringSchedule || existingClient.recurringSchedule,
-      };
-      setClients(updated);
-      if (selectedClient && selectedClient.id === updated[existingIndex].id) {
-        setSelectedClient(updated[existingIndex]);
-      }
-
-    } else {
-      // Create new client record from invitation
-      const initials = invitation.clientName
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .substring(0, 2)
-        .toUpperCase();
-
-      const newId = `cli-${Date.now()}`;
-      const newClientRecord: Client = {
-        id: newId,
-        name: invitation.clientName,
-        preferredPronouns: invitation.preferredPronouns || 'they/them',
-        avatarInitials: initials || 'CL',
-        status: 'active',
-        email: invitation.clientEmail,
-        phone: invitation.clientPhone,
-        contactEmail: invitation.clientEmail,
-        contactPhone: invitation.clientPhone,
-        portalStatus: 'invited',
-        invitationSentDate: 'Today',
-        briefingStatus: 'ready',
-        nextSession: nextSessionInfo,
-        recurringSchedule,
-        lastSession: null,
-        sessions: [],
-        actions: [],
-        notes: [
-          {
-            id: `note-${Date.now()}`,
-            date: 'Today',
-            title: 'Initial Portal Invitation Sent',
-            content: `Sent invitation link to ${invitation.clientEmail}. Scheduled: ${sessionDay}s at ${sessionTime} (${isRecurring ? `Recurring ${cadence}` : 'One-time'}). Intake packs selected: ${invitation.forms?.join(', ') || 'Standard Intake'}. Custom note: "${invitation.customWelcomeNote || 'Standard intake welcome.'}"`,
-            isPrivate: true,
-            category: 'clinical_impression',
-          }
-        ],
-        journeyPatterns: [],
-        evidenceStore: {},
-        briefing: {
-          whatChanged: {
-            text: 'Client invited to secure portal with recurring schedule. Intake responses will populate baseline history and clinical themes automatically.',
-            mentionsCount: 0,
-            journalCount: 0,
-            conversationsCount: 0,
-            evidenceGroupId: 'ev-init-1',
-          },
-          clientWantsToDiscuss: {
-            quote: 'Initial intake and goals discussion.',
-            context: 'Intake portal registration',
-            conversationEvidenceId: 'ev-init-1',
-          },
-          whatTheyTried: [],
-          observedPattern: {
-            text: 'Client invited to secure portal. Baseline evaluation in progress.',
-            observedCount: 1,
-            lastSeen: 'Pending intake',
-            evidenceGroupId: 'ev-init-1',
-            clinicalNoteSeparateFromObservation: 'Awaiting intake paperwork completion.',
-          },
-          worthExploring: ['Review submitted intake questionnaire and consent form once completed.'],
-          context: {
-            previousSessionDate: 'None (new intake)',
-            keyPoints: ['Portal link sent', 'Intake paperwork pending'],
-            previousSessionId: 'sess-init',
-          },
-        },
-      };
-
-      setClients(prev => [newClientRecord, ...prev]);
-
-    }
   };
 
   // Handle opening evidence side panel
@@ -280,7 +139,7 @@ export default function App() {
   // Select client from search or list
   const handleSelectClient = (
     client: Client,
-    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats' = 'briefing'
+    tab: 'briefing' | 'sessions' | 'actions' | 'notes' | 'chats' = 'briefing'
   ) => {
     // Pending invitations have no account yet — don't open a workspace for them.
     if ((client as any)._pending) return;
@@ -525,44 +384,11 @@ export default function App() {
         )}
       </main>
 
-      {/* Therapist Onboarding Modal */}
-      <TherapistOnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
-        profile={therapistProfile}
-        initialProfile={therapistProfile}
-        onSaveProfile={handleSaveTherapistProfile}
-        onOpenInviteClient={() => {
-          setIsOnboardingOpen(false);
-          handleOpenInviteModal();
-        }}
-        onInviteClient={() => {
-          setIsOnboardingOpen(false);
-          handleOpenInviteModal();
-        }}
-      />
-
-      {/* Add client on WhatsApp (default) */}
+      {/* Add client on WhatsApp */}
       <WhatsAppInviteModal
         isOpen={isWaInviteOpen}
         onClose={() => setIsWaInviteOpen(false)}
         onSent={() => setCaseloadVersion((v) => v + 1)}
-        onUseEmail={() => { setIsWaInviteOpen(false); setInviteTargetClient(undefined); setIsInviteClientOpen(true); }}
-      />
-
-      {/* Invite Client to Portal Modal */}
-      <InviteClientModal
-        isOpen={isInviteClientOpen}
-        onClose={() => {
-          setIsInviteClientOpen(false);
-          setInviteTargetClient(undefined);
-        }}
-        clients={clients}
-        existingClients={clients}
-        targetClient={inviteTargetClient}
-        preselectedClient={inviteTargetClient}
-        therapistProfile={therapistProfile}
-        onSendInvitation={handleSendClientInvitation}
       />
 
       {/* Global Evidence Slide-Over Drawer */}

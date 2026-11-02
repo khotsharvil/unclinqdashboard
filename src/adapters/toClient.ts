@@ -95,11 +95,9 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     (s.key_event?.trigger ? `Came up: ${s.key_event.trigger}.` : '') ||
     (s.reflection ? `In their words: “${s.reflection}”.` : '') ||
     // Reflect whatever we have: even a short check-in with no structured event.
-    (s.check_in?.insight ? `Checked in with Emora: ${s.check_in.insight}` : '') ||
-    (s.check_in?.count
-      ? `${s.check_in.count} between-session check-in${s.check_in.count > 1 ? 's' : ''} so far — early days; more will surface as they keep using it.`
-      : '') ||
-    'Some between-session activity was captured.';
+    (s.check_in?.insight ? `From their latest chat: ${s.check_in.insight}` : '') ||
+    // Nothing specific to say: empty, and the briefing hides the section (no filler).
+    '';
   // Accurate per-source capture counts (no double-counting). by_source is a map
   // like { emora: 2, journal: 1, voice: 1 }; fall back to the total event count.
   const bySource = s.sources?.by_source || {};
@@ -113,12 +111,22 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     bySource,
     evidenceGroupId: 'ev-changed',
   } as any;
-  // "Wants to discuss" prefers an explicit prepare-reflection; otherwise surface the
-  // client's own verbatim words from the moment (better than an empty quote).
+  // "They want to talk about" = only what the client actually said they want to bring
+  // (their session-prep answer). Empty means the section is hidden, never "“”".
   b.clientWantsToDiscuss = {
-    quote: s.wants_to_discuss || s.reflection || s.key_event?.trigger || '',
-    context: s.why_flagged || (s.wants_to_discuss ? '' : (s.reflection ? 'From what they shared with Emora' : '')),
+    quote: s.wants_to_discuss || '',
+    context: s.why_flagged || '',
     conversationEvidenceId: 'ev-discuss',
+  };
+  (b as any).whatHelped = s.what_helped || null;
+  // Homework as set by the therapist, with the client's own words (backend splits the
+  // verbatim quote from the AI summary).
+  (b as any).homework = Array.isArray(s.homework) ? s.homework : null;
+  (b as any).sources = {
+    chats: s.sources?.conversations || 0,
+    moments: s.sources?.events || s.event_count || 0,
+    mood: (s.wellbeing?.mood?.good || 0) + (s.wellbeing?.mood?.okay || 0) + (s.wellbeing?.mood?.struggling || 0),
+    sleep: s.wellbeing?.sleep?.nights || 0,
   };
   if (s.technique_application) {
     b.whatTheyTried = [{ id: 'tech', name: s.technique_application, attempted: 1, completed: 0, clientResponse: '', status: 'mixed' }];
@@ -128,7 +136,7 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   const patRefs = (s.evidence?.pattern || s.evidence?.main_trigger || []) as any[];
   const lastAt = patRefs.map((r) => r.at).filter(Boolean).sort().slice(-1)[0] || s.key_event?.at || null;
   b.observedPattern = {
-    text: s.pattern || '',
+    text: (s.pattern && String(s.pattern).trim().toLowerCase() !== 'a recurring pattern') ? s.pattern : '',
     observedCount: s.recurrence_count || 0,
     lastSeen: lastAt ? fmtDate(lastAt) : '',
     evidenceGroupId: 'ev-pattern',
@@ -137,33 +145,13 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
     // never a client-generated theme (that would mislabel provenance).
     clinicalNoteSeparateFromObservation: journey?.observed_changes?.[0]?.text || '',
   };
-  // Worth-exploring + engagement prompt, plain and non-prescriptive.
+  // Worth exploring: only specific, grounded openings. No generic filler: if there is
+  // nothing specific, the section is hidden.
   const explore: string[] = [];
-  // One-tap mood + sleep logs from WhatsApp: shown under "What changed"; anything
-  // concerning (e.g. several short nights) leads the exploration prompts.
   (b as any).wellbeing = s.wellbeing || null;
-  for (const f of s.wellbeing?.flags || []) explore.push(f);
-  if (s.why_flagged) explore.push(`Client chose to bring this in: "${s.why_flagged}"`);
-  if (s.engagement?.direction === 'quieter') explore.push('Quieter than their recent baseline — may be worth gently exploring.');
-  if (s.engagement?.assigned_not_started > 0) explore.push('An assigned action hasn’t been picked up yet.');
-  if (s.wants_to_discuss) explore.push(s.wants_to_discuss);
-  // Session-prep answer (WhatsApp, the day before): what the client says helped.
-  if (s.what_helped) explore.push(`They say this helped: "${s.what_helped}"`);
-  // Fallbacks so this is never empty — but as genuine, gentle EXPLORATION PROMPTS,
-  // NOT a copy of the observed pattern (§04) or the quote (§02). Kept short and
-  // phrased as an opening the therapist might take in-session.
-  if (explore.length === 0) {
-    const shortTrigger = (t: any) => { const x = String(t || '').split(/[;→]/)[0].trim(); return x.length > 64 ? x.slice(0, 64) + '…' : x; };
-    if (s.recurrence_count > 1) {
-      explore.push(`This has recurred ${s.recurrence_count} times — worth exploring what keeps bringing it back.`);
-    } else if (s.recurrence_of) {
-      explore.push(`Worth exploring what sits underneath “${shortTrigger(s.recurrence_of)}”.`);
-    } else if (s.main_trigger) {
-      explore.push(`Worth exploring what makes “${shortTrigger(s.main_trigger)}” land so hard.`);
-    } else if (s.reflection) {
-      explore.push('Worth gently unpacking what they shared this week.');
-    }
-  }
+  if (s.why_flagged) explore.push(`They chose to bring this in: "${s.why_flagged}"`);
+  if (s.engagement?.direction === 'quieter') explore.push('Quieter than usual for them since the last session.');
+  if (s.engagement?.assigned_not_started > 0) explore.push(`${s.engagement.assigned_not_started === 1 ? 'A homework item hasn’t' : `${s.engagement.assigned_not_started} homework items haven’t`} been started yet.`);
   b.worthExploring = explore;
   b.context = { previousSessionDate: latestSessionDate, keyPoints: (journey?.goals || []).slice(0, 4), previousSessionId: '' };
   return b;
@@ -349,6 +337,7 @@ export function toClientStub(row: any): Client {
     status: (row.open_signals > 0 ? 'needs_attention' : 'active'),
     briefingStatus: row.new_activity_since_briefing ? 'new_activity' : (row.latest_briefing_at ? 'ready' : 'no_activity'),
     nextSession: toNextSession(row.next_session_at),
+    lastActivityAt: row.latest_activity_at || row.wa_last_message_at || null,
     lastSession: row.latest_session_at
       ? { display: fmtDate(row.latest_session_at), date: String(row.latest_session_at).slice(0, 10) }
       : null,
@@ -464,7 +453,11 @@ export async function loadRealClient(clientId: string): Promise<Client> {
     lastSession: ov.latest_session?.occurred_at
       ? { display: fmtDate(ov.latest_session.occurred_at), date: String(ov.latest_session.occurred_at).slice(0, 10) }
       : null,
-    briefing: toBriefing(briefing, journey, latestDate),
+    briefing: Object.assign(toBriefing(briefing, journey, latestDate), {
+      // The AI "This week" summary across the whole period (backend briefing.content).
+      thisWeek: String(br.briefing?.content || '').trim() || null,
+      since: br.briefing?.period_start || null,
+    }),
     briefingId: br.briefing?.id,
     briefingFeedback: br.briefing?.feedback ?? null,
     journeyPatterns: toPatterns(journey),

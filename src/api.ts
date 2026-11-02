@@ -214,6 +214,12 @@ export interface RiskSignal {
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
   signals: (): Promise<{ signals: RiskSignal[] }> => api.get('/therapist/signals'),
+  // One-tap WhatsApp logs as day series for the briefing's mood & sleep chart.
+  wellbeing: (id: string, days = 14): Promise<{
+    days: number;
+    mood: { date: string; mood: 'good' | 'okay' | 'struggling' }[];
+    sleep: { date: string; band: 'under5' | '5to7' | '7plus' }[];
+  }> => api.get(`/therapist/clients/${id}/wellbeing?days=${days}`),
   ackSignal: (signalId: string) => api.post(`/therapist/signals/${signalId}/ack`, {}),
   // The one saved next session (drives the day-before WhatsApp prep + the briefing). null clears it.
   setNextSession: (id: string, next_session_at: string | null) =>

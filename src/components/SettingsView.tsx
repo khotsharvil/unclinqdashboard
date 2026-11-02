@@ -223,7 +223,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
             </div>
             <div>
-              <label className="u-eyebrow block mb-1.5">Specialization</label>
+              <label className="u-eyebrow block mb-1.5">Professional title</label>
               <input
                 type="text"
                 value={specialization}
@@ -241,12 +241,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
             </div>
             <div>
-              <label className="u-eyebrow block mb-1.5">Email</label>
+              <label className="u-eyebrow block mb-1.5">Sign-in email</label>
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-base font-serif text-[#10151F] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors"
+                readOnly
+                className="w-full px-4 py-2.5 bg-[#F2F4F7] border border-[#ECEFF3] rounded-lg text-base font-serif text-[#6B7686] cursor-not-allowed"
               />
             </div>
             <div className="sm:col-span-2">
@@ -406,21 +406,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="u-eyebrow block mb-1.5">Default Session Length</label>
-              <select className="w-full px-4 py-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-base font-serif text-[#10151F] focus:outline-none focus:bg-white focus:border-[#0D9488] transition-colors cursor-pointer">
-                <option>50 minutes</option>
-                <option>60 minutes</option>
-                <option>45 minutes</option>
-              </select>
-            </div>
           </div>
 
           <div className="flex items-center justify-between pt-3 border-t border-[#F2F5F8]">
             {saveSuccess && (
               <span className="text-[13px] text-[#0F766E] font-medium animate-in fade-in flex items-center space-x-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Practice configuration saved!</span>
+                <span>Saved</span>
               </span>
             )}
             <button
@@ -428,7 +420,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onClick={handleSaveProfile}
               className="u-btn-primary ml-auto"
             >
-              Save Practice Settings
+              Save
             </button>
           </div>
         </div>

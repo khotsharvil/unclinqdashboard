@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import {
-  ArrowRight,
   ChevronRight,
   ThumbsUp,
   ThumbsDown,
-  Zap,
 } from 'lucide-react';
-import { Client, EvidenceGroup } from '../../types';
+import { Client, EvidenceGroup, BriefingHomework } from '../../types';
 import { AssessmentsCard } from './AssessmentsCard';
+import { MoodSleepChart } from './MoodSleepChart';
 import { therapistApi } from '../../api';
 
 /* Pilot metric B — one optional tap: did this briefing help you prepare?
@@ -100,26 +99,22 @@ const BriefingUsefulness: React.FC<{
 interface BriefingViewProps {
   client: Client;
   onOpenEvidence: (evidenceGroup: EvidenceGroup) => void;
-  onNavigateToTab: (tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes', sessionId?: string) => void;
+  onNavigateToTab: (tab: 'briefing' | 'sessions' | 'actions' | 'notes', sessionId?: string) => void;
 }
 
-/* Numbered clinical point. Left rail = fixed label spine; right = content. */
-const Point: React.FC<{
-  index: string;
+/* One briefing section: label on the left rail, content on the right. */
+const Section: React.FC<{
   label: string;
   link?: { text: string; onClick: () => void };
   children: React.ReactNode;
-}> = ({ index, label, link, children }) => (
-  <section className="px-6 sm:px-8 py-7 grid sm:grid-cols-[170px_1fr] gap-3 sm:gap-8">
+}> = ({ label, link, children }) => (
+  <section className="px-6 sm:px-8 py-6 grid sm:grid-cols-[170px_1fr] gap-2 sm:gap-8">
     <div className="sm:pt-0.5">
-      <div className="flex items-baseline gap-2">
-        <span className="font-mono text-[11px] text-[#0D9488] tabular-nums">{index}</span>
-        <h3 className="text-[13px] font-semibold text-[#3A4453] tracking-tight leading-tight">{label}</h3>
-      </div>
+      <h3 className="text-[13px] font-semibold text-[#3A4453] tracking-tight leading-tight">{label}</h3>
       {link && (
         <button
           onClick={link.onClick}
-          className="mt-2 text-[12px] text-[#9AA4B2] hover:text-[#0F766E] flex items-center gap-0.5 transition-colors cursor-pointer"
+          className="mt-1.5 text-[12px] text-[#9AA4B2] hover:text-[#0F766E] flex items-center gap-0.5 transition-colors cursor-pointer"
         >
           <span>{link.text}</span>
           <ChevronRight className="w-3 h-3" />
@@ -138,6 +133,15 @@ const ago = (iso?: string | null) => {
   if (hrs < 24) return `${hrs} h ago`;
   const days = Math.round(hrs / 24);
   return days === 1 ? 'yesterday' : `${days} days ago`;
+};
+const shortDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+
+const STATUS: Record<BriefingHomework['status'], { label: string; cls: string }> = {
+  done:        { label: 'Done',        cls: 'text-[#0F766E] bg-[#F1FAF9] border-[#CDEBE7]' },
+  partly:      { label: 'Partly',      cls: 'text-[#3A4453] bg-[#F4F6F8] border-[#E2E7EE]' },
+  not_yet:     { label: 'Not yet',     cls: 'text-[#B45309] bg-[#FEF3E2] border-[#F5D9A8]' },
+  not_started: { label: 'Not started', cls: 'text-[#6B7686] bg-white border-[#E2E7EE]' },
 };
 
 const NewClientState: React.FC<{
@@ -159,21 +163,21 @@ const NewClientState: React.FC<{
           <h3 className="text-[19px] font-serif font-semibold text-[#10151F]">No briefing yet</h3>
           <p className="text-[14px] text-[#3A4453] mt-1">{status}</p>
           <p className="text-[14px] text-[#6B7686] mt-1">
-            Their first briefing appears here once there's something to go on: a recorded session, or a few days of check-ins and chats with Emora.
+            Their first briefing appears here once there's something to go on: a recorded session, or a few days of chats, homework updates and sleep or mood taps on WhatsApp.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-3">
           <button className={step} onClick={() => onNavigateToTab('actions')}>
             <span className="font-mono text-[11px] text-[#0D9488] mt-1">01</span>
             <span>
-              <span className="block text-[14px] font-medium text-[#10151F]">Assign something for this week</span>
-              <span className="block text-[12px] text-[#6B7686]">{wa ? 'It reaches them on WhatsApp, with Done / Not yet buttons.' : 'They see it in their app.'}</span>
+              <span className="block text-[14px] font-medium text-[#10151F]">Set homework for this week</span>
+              <span className="block text-[12px] text-[#6B7686]">It reaches them on WhatsApp, with Done / Partly / Not yet buttons.</span>
             </span>
           </button>
           <button className={step} onClick={() => onNavigateToTab('sessions')}>
             <span className="font-mono text-[11px] text-[#0D9488] mt-1">02</span>
             <span>
-              <span className="block text-[14px] font-medium text-[#10151F]">Record or upload your next session</span>
+              <span className="block text-[14px] font-medium text-[#10151F]">Record your next session</span>
               <span className="block text-[12px] text-[#6B7686]">The briefing builds from it automatically.</span>
             </span>
           </button>
@@ -186,228 +190,185 @@ const NewClientState: React.FC<{
   );
 };
 
+// Demo clients carry the older briefing shape: map it to homework rows.
+function homeworkOf(client: Client): BriefingHomework[] {
+  const b = client.briefing;
+  if (Array.isArray(b.homework)) return b.homework;
+  return (b.whatTheyTried || []).map((t) => ({
+    id: t.id,
+    description: t.name,
+    status: t.completed > 0 ? 'done' : t.attempted > 0 ? 'partly' : 'not_started',
+    updates: t.attempted || 0,
+    latest: t.clientResponse ? [{ at: '', words: t.clientResponse, summary: null }] : [],
+  }));
+}
+
+const HomeworkRow: React.FC<{ item: BriefingHomework }> = ({ item }) => {
+  const [all, setAll] = useState(false);
+  const st = STATUS[item.status] || STATUS.not_started;
+  const shown = all ? item.latest : item.latest.slice(0, 1);
+  return (
+    <li className="space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <h4 className="text-[16px] font-serif font-semibold text-[#10151F] tracking-tight leading-snug">{item.description}</h4>
+        <span className={`shrink-0 text-[11px] font-medium border rounded-full px-2 py-0.5 ${st.cls}`}>{st.label}</span>
+      </div>
+      {item.updates > 0 && (
+        <p className="text-[12px] text-[#9AA4B2]">{item.updates} update{item.updates === 1 ? '' : 's'} on WhatsApp</p>
+      )}
+      {shown.map((u, i) => (
+        <div key={i} className="pl-3 border-l-2 border-[#CDEBE7]">
+          {u.words
+            ? <p className="text-[15px] font-serif italic text-[#10151F] leading-[1.55]">“{u.words}”</p>
+            : <p className="text-[14px] text-[#3A4453] leading-relaxed"><span className="text-[11px] uppercase tracking-wide text-[#9AA4B2] mr-1.5">Summary</span>{u.summary}</p>}
+          {u.at && <p className="text-[12px] text-[#9AA4B2] mt-0.5">{shortDate(u.at)}</p>}
+        </div>
+      ))}
+      {item.latest.length > 1 && (
+        <button onClick={() => setAll((v) => !v)} className="text-[12px] text-[#6B7686] hover:text-[#0F766E] cursor-pointer">
+          {all ? 'Show less' : `Show ${item.latest.length - 1} more`}
+        </button>
+      )}
+    </li>
+  );
+};
+
 export const BriefingView: React.FC<BriefingViewProps> = ({
   client,
   onOpenEvidence,
   onNavigateToTab,
 }) => {
   const { briefing, evidenceStore } = client;
-  const [rapidPrepMode, setRapidPrepMode] = useState(false);
+  const isReal = /^[0-9a-f-]{36}$/i.test(client.id);
+  // Hooks stay above the early return below (rules of hooks).
+  const [wellbeing, setWellbeing] = useState<'loading' | 'some' | 'none'>('loading');
+  const [showAssess, setShowAssess] = useState((client.assessments || []).length > 0);
 
-  const handleOpenEvidenceGroup = (groupId: string, fallbackTitle: string) => {
+  const openEvidence = (groupId: string, fallbackTitle: string) => {
     const group = evidenceStore[groupId] || { id: groupId, title: fallbackTitle, items: [] };
     onOpenEvidence(group);
   };
 
   // Brand-new client: nothing to synthesise yet. Say where they are and what to do,
-  // instead of rendering five empty briefing sections.
+  // instead of rendering empty sections.
   if (client.briefingStatus === 'no_activity' && !client.briefingId && client.sessions.length === 0) {
     return <NewClientState client={client} onNavigateToTab={onNavigateToTab} />;
   }
 
+  // Only real content: the AI summary of the period, or a specific line from the data.
+  const thisWeek = (briefing.thisWeek || briefing.whatChanged.text || '').trim();
+  const hasItems = (id: string) => (evidenceStore[id]?.items || []).length > 0;
+  const wantsToTalk = (briefing.clientWantsToDiscuss.quote || '').trim();
+  const whatHelped = (briefing.whatHelped || '').trim();
+  const homework = homeworkOf(client);
+  const pattern = (briefing.observedPattern.text || '').trim();
+  const explore = briefing.worthExploring.filter(Boolean).slice(0, 2);
+  const flags = ((briefing as any).wellbeing?.flags || []) as string[];
+  const src = briefing.sources;
+  const sinceLabel = client.lastSession?.display
+    ? `since the last session · ${client.lastSession.display}`
+    : briefing.since ? `since ${shortDate(briefing.since)}` : 'so far';
+  const based = src ? [
+    src.chats && `${src.chats} chat${src.chats === 1 ? '' : 's'}`,
+    src.moments && `${src.moments} moment${src.moments === 1 ? '' : 's'}`,
+    src.mood && `${src.mood} mood tap${src.mood === 1 ? '' : 's'}`,
+    src.sleep && `${src.sleep} sleep tap${src.sleep === 1 ? '' : 's'}`,
+  ].filter(Boolean).join(' · ') : '';
+
   return (
     <div className="space-y-5 w-full">
+      <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8]">
 
-      {/* Header row */}
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-[13px] text-[#9AA4B2]">
-          Synthesis since {client.lastSession?.display || 'intake'}
-        </p>
-        <button
-          id="toggle-rapid-prep-btn"
-          onClick={() => setRapidPrepMode(!rapidPrepMode)}
-          className={`text-[13px] font-medium transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer ${
-            rapidPrepMode
-              ? 'bg-[#10151F] text-white'
-              : 'text-[#6B7686] hover:text-[#10151F] hover:bg-[#F4F6F9]'
-          }`}
-        >
-          <Zap className={`w-3.5 h-3.5 ${rapidPrepMode ? 'text-white' : 'text-[#0D9488]'}`} />
-          <span>{rapidPrepMode ? 'Full briefing' : '30-second view'}</span>
-        </button>
-      </div>
+        {/* Every section below is hidden without real data; if all of them are, say so once. */}
+        {!(thisWeek || wantsToTalk || whatHelped || homework.length || pattern || explore.length || client.sessions.length) && wellbeing === 'none' && (
+          <p className="px-6 sm:px-8 py-6 text-[15px] text-[#6B7686]">Nothing new since the last session.</p>
+        )}
 
-      {rapidPrepMode ? (
-        /* ================= RAPID: three points, same spine ================= */
-        <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8] animate-in fade-in duration-150">
-          <Point index="01" label="What changed">
-            <p className="text-[19px] font-serif text-[#10151F] leading-[1.55]">{briefing.whatChanged.text}</p>
-            {(briefing as any).wellbeing?.summary && (
-              <p className="mt-3 text-[14px] text-[#4B5563] leading-relaxed">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0D9488] mr-2">Mood &amp; sleep</span>
-                {(briefing as any).wellbeing.summary}
+        {/* This week: the meaning, across the whole period */}
+        {thisWeek && (
+          <Section label="This week" link={hasItems(briefing.whatChanged.evidenceGroupId) ? { text: 'Evidence', onClick: () => openEvidence(briefing.whatChanged.evidenceGroupId, 'What this is based on') } : undefined}>
+            <p className="text-[12px] text-[#9AA4B2] mb-2">{sinceLabel}</p>
+            <p className="text-[18px] sm:text-[19px] text-[#10151F] leading-[1.6] font-serif tracking-tight whitespace-pre-line">{thisWeek}</p>
+          </Section>
+        )}
+
+        {/* Their own words about the next session (only when they answered) */}
+        {(wantsToTalk || whatHelped) && (
+          <Section label="They want to talk about">
+            {wantsToTalk && (
+              <blockquote className="text-[19px] sm:text-[21px] font-serif text-[#10151F] leading-[1.45] italic tracking-tight">“{wantsToTalk}”</blockquote>
+            )}
+            {briefing.clientWantsToDiscuss.context && (
+              <p className="text-[13px] text-[#6B7686] mt-2">Why: “{briefing.clientWantsToDiscuss.context}”</p>
+            )}
+            {whatHelped && (
+              <p className="text-[14px] text-[#3A4453] mt-3"><span className="font-medium">What helped:</span> <span className="font-serif italic">“{whatHelped}”</span></p>
+            )}
+          </Section>
+        )}
+
+        {/* Homework: how it went, in their words */}
+        {homework.length > 0 && (
+          <Section label="Homework" link={{ text: 'Homework tab', onClick: () => onNavigateToTab('actions') }}>
+            <ul className="space-y-6">
+              {homework.slice(0, 4).map((h) => <HomeworkRow key={h.id} item={h} />)}
+            </ul>
+          </Section>
+        )}
+
+        {/* Mood & sleep: the one-tap WhatsApp answers, day by day */}
+        {isReal && wellbeing !== 'none' && (
+          <div className={wellbeing === 'loading' ? 'hidden' : ''}>
+          <Section label="Mood & sleep">
+            <MoodSleepChart clientId={client.id} onData={(has) => setWellbeing(has ? 'some' : 'none')} />
+            {flags.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {flags.map((f, i) => <li key={i} className="text-[13px] text-[#B45309]">{f}</li>)}
+              </ul>
+            )}
+          </Section>
+          </div>
+        )}
+
+        {/* A named recurring pattern, with the moments behind it */}
+        {pattern && (
+          <Section label="Came up more than once" link={hasItems(briefing.observedPattern.evidenceGroupId) ? { text: 'Moments', onClick: () => openEvidence(briefing.observedPattern.evidenceGroupId, 'The moments behind this') } : undefined}>
+            <p className="text-[16px] font-serif text-[#10151F] leading-[1.55]">{pattern}</p>
+            {briefing.observedPattern.observedCount > 1 && (
+              <p className="text-[12px] text-[#9AA4B2] mt-1.5">
+                {briefing.observedPattern.observedCount} times{briefing.observedPattern.lastSeen ? ` · last ${briefing.observedPattern.lastSeen}` : ''}
               </p>
             )}
-          </Point>
-          <Point index="02" label="Wants to discuss">
-            <blockquote className="text-[19px] font-serif italic text-[#10151F] leading-[1.5]">
-              “{briefing.clientWantsToDiscuss.quote}”
-            </blockquote>
-          </Point>
-          <Point index="03" label="Worth exploring">
+          </Section>
+        )}
+
+        {/* Specific openings only; no filler */}
+        {explore.length > 0 && (
+          <Section label="Worth exploring">
             <ul className="space-y-2.5">
-              {briefing.worthExploring.slice(0, 2).map((q, i) => (
-                <li key={i} className="text-[17px] font-serif text-[#10151F] leading-[1.5]">{q}</li>
+              {explore.map((q, i) => (
+                <li key={i} className="text-[16px] font-serif text-[#10151F] leading-[1.5]">{q}</li>
               ))}
             </ul>
-          </Point>
-        </div>
-      ) : (
+          </Section>
+        )}
 
-        /* ================= FULL: 5 numbered points + footer ================= */
-        <div className="bg-white rounded-2xl border border-[#ECEFF3] divide-y divide-[#F2F5F8] animate-in fade-in duration-150">
-
-          {/* 01 — What changed */}
-          <Point
-            index="01"
-            label="What changed"
-            link={{ text: 'Evidence', onClick: () => handleOpenEvidenceGroup(briefing.whatChanged.evidenceGroupId, 'What changed evidence') }}
-          >
-            <p className="text-[19px] sm:text-[20px] text-[#10151F] leading-[1.55] font-serif tracking-tight">
-              {briefing.whatChanged.text}
-            </p>
-            <button
-              id="evidence-pill-whatchanged"
-              onClick={() => handleOpenEvidenceGroup(briefing.whatChanged.evidenceGroupId, 'Evidence summary')}
-              className="mt-3 text-[13px] text-[#9AA4B2] hover:text-[#0F766E] transition-colors cursor-pointer"
-            >
-              {(() => {
-                const wc = briefing.whatChanged as any;
-                const total = wc.momentCount ?? 0;
-                const parts: string[] = [];
-                if (wc.mentionsCount) parts.push(`${wc.mentionsCount} from Emora`);
-                if (wc.journalCount) parts.push(`${wc.journalCount} note${wc.journalCount === 1 ? '' : 's'}`);
-                if (wc.conversationsCount) parts.push(`${wc.conversationsCount} check-in${wc.conversationsCount === 1 ? '' : 's'}`);
-                return (
-                  <>
-                    <span className="font-mono tabular-nums text-[#6B7686]">{total}</span> moment{total === 1 ? '' : 's'} captured
-                    {parts.length > 0 && <span className="text-[#9AA4B2]"> · {parts.join(' · ')}</span>}
-                  </>
-                );
-              })()}
-            </button>
-            {(briefing as any).wellbeing?.summary && (
-              <p className="mt-3 text-[14px] text-[#4B5563] leading-relaxed">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0D9488] mr-2">Mood &amp; sleep</span>
-                {(briefing as any).wellbeing.summary}
-              </p>
+        {/* Last session: only when there is one */}
+        {client.sessions.length > 0 && (
+          <Section label="Last session" link={{ text: 'Open', onClick: () => onNavigateToTab('sessions', briefing.context.previousSessionId || undefined) }}>
+            <p className="text-[13px] text-[#6B7686]">{briefing.context.previousSessionDate || client.lastSession?.display}</p>
+            {briefing.context.keyPoints.length > 0 && (
+              <ul className="mt-1.5 space-y-1 text-[15px] font-serif text-[#3A4453] leading-[1.55]">
+                {briefing.context.keyPoints.map((point, idx) => <li key={idx}>{point}</li>)}
+              </ul>
             )}
-          </Point>
+          </Section>
+        )}
 
-          {/* 02 — Wants to discuss */}
-          <Point
-            index="02"
-            label="Wants to discuss"
-            link={{ text: 'Excerpt', onClick: () => handleOpenEvidenceGroup(briefing.clientWantsToDiscuss.conversationEvidenceId, 'Client conversation excerpt') }}
-          >
-            <blockquote className="text-[21px] sm:text-[23px] font-serif text-[#10151F] leading-[1.45] italic tracking-tight">
-              “{briefing.clientWantsToDiscuss.quote}”
-            </blockquote>
-            <p className="text-[13px] text-[#9AA4B2] mt-3 leading-relaxed">{briefing.clientWantsToDiscuss.context}</p>
-          </Point>
-
-          {/* 03 — What they tried */}
-          <Point
-            index="03"
-            label="What they tried"
-            link={{ text: `All actions · ${client.actions.length}`, onClick: () => onNavigateToTab('actions') }}
-          >
-            <div className="space-y-5">
-              {briefing.whatTheyTried.map((item) => {
-                const pct = item.attempted ? Math.round((item.completed / item.attempted) * 100) : 0;
-                return (
-                  <div key={item.id} className="flex items-start gap-4">
-                    <div className="shrink-0 w-12 pt-0.5">
-                      <div className="font-mono text-[13px] font-semibold text-[#10151F] tabular-nums">
-                        {item.completed}/{item.attempted}
-                      </div>
-                      <div className="mt-1.5 h-1 rounded-full bg-[#F2F5F8] overflow-hidden">
-                        <div className="h-full rounded-full bg-[#0D9488]" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-[16px] font-serif font-semibold text-[#10151F] tracking-tight">{item.name}</h4>
-                      <p className="font-serif italic text-[15px] text-[#6B7686] leading-[1.55] mt-0.5">
-                        “{item.clientResponse}”
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Point>
-
-          {/* 04 — Observed pattern */}
-          <Point
-            index="04"
-            label="Observed pattern"
-            link={{ text: 'Moments', onClick: () => handleOpenEvidenceGroup(briefing.observedPattern.evidenceGroupId, 'Observed pattern moments') }}
-          >
-            <p className="text-[19px] sm:text-[20px] text-[#10151F] font-serif leading-[1.55] tracking-tight">
-              {briefing.observedPattern.text}
-            </p>
-            <p className="text-[13px] text-[#9AA4B2] mt-2">
-              Observed <span className="font-mono tabular-nums text-[#6B7686]">{briefing.observedPattern.observedCount}</span> times
-              <span className="mx-1.5 text-[#DDE2E9]">·</span>
-              last seen {briefing.observedPattern.lastSeen}
-            </p>
-
-            <div className="mt-4 rounded-xl bg-[#FAFAFE] border border-[#EEEEF8] px-4 py-3.5">
-              <p className="text-[11px] font-semibold tracking-wide uppercase text-[#8B84C9] mb-1.5">
-                AI hypothesis · not a clinical fact
-              </p>
-              <p className="text-[15px] font-serif text-[#4B5566] leading-[1.6]">
-                {briefing.observedPattern.clinicalNoteSeparateFromObservation}
-              </p>
-            </div>
-          </Point>
-
-          {/* 05 — Worth exploring */}
-          <Point index="05" label="Worth exploring">
-            <ul className="space-y-3.5">
-              {briefing.worthExploring.map((prompt, index) => (
-                <li key={index} className="flex items-baseline gap-3">
-                  <span className="font-mono text-[12px] text-[#0D9488] tabular-nums shrink-0 w-4">{index + 1}</span>
-                  <span className="text-[#10151F] font-serif text-[17px] sm:text-[18px] leading-[1.5] tracking-tight">{prompt}</span>
-                </li>
-              ))}
-            </ul>
-          </Point>
-
-          {/* Footer — last session (context, not a numbered point) */}
-          <section className="px-6 sm:px-8 py-6 grid sm:grid-cols-[170px_1fr] gap-3 sm:gap-8 bg-[#FCFDFE]">
-            <div>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-[13px] font-semibold text-[#9AA4B2] tracking-tight">Last session</h3>
-              </div>
-              <p className="text-[12px] text-[#C3CBD6] mt-1 font-mono">{briefing.context.previousSessionDate}</p>
-              <button
-                onClick={() => onNavigateToTab('sessions', briefing.context.previousSessionId)}
-                className="mt-2 text-[12px] text-[#9AA4B2] hover:text-[#0F766E] flex items-center gap-0.5 transition-colors cursor-pointer"
-              >
-                <span>Open</span>
-                <ChevronRight className="w-3 h-3" />
-              </button>
-            </div>
-            <ul className="min-w-0 space-y-1.5 text-[15px] font-serif text-[#6B7686] leading-[1.55]">
-              {briefing.context.keyPoints.map((point, idx) => (
-                <li key={idx}>{point}</li>
-              ))}
-            </ul>
-          </section>
-
-        </div>
-      )}
-
-      {rapidPrepMode && (
-        <button
-          onClick={() => setRapidPrepMode(false)}
-          className="text-[13px] text-[#9AA4B2] hover:text-[#0F766E] font-medium cursor-pointer transition-colors flex items-center gap-1"
-        >
-          <span>Read full briefing</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      )}
+        {based && (
+          <p className="px-6 sm:px-8 py-3 text-[12px] text-[#9AA4B2]">Based on {based}.</p>
+        )}
+      </div>
 
       {/* Pilot metric B — usefulness tap. Only for real (backend) briefings. */}
       {client.briefingId && (
@@ -419,10 +380,16 @@ export const BriefingView: React.FC<BriefingViewProps> = ({
         />
       )}
 
-      {/* Assessments — reference context (also attunes Emora + anchors the briefing) */}
-      <div className="rounded-2xl border border-[#ECEFF3] bg-white overflow-hidden">
-        <AssessmentsCard client={client} />
-      </div>
+      {/* Assessments: shown when there are some; otherwise one small link to add one. */}
+      {showAssess ? (
+        <div className="rounded-2xl border border-[#ECEFF3] bg-white overflow-hidden">
+          <AssessmentsCard client={client} />
+        </div>
+      ) : (
+        <button onClick={() => setShowAssess(true)} className="text-[13px] text-[#6B7686] hover:text-[#0F766E] cursor-pointer">
+          + Add an assessment (PHQ-9, GAD-7, or your own)
+        </button>
+      )}
 
     </div>
   );

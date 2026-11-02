@@ -19,7 +19,6 @@ import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS, RiskSignal } from '../.
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
 import { BriefingView } from './BriefingView';
-import { JourneyView } from './JourneyView';
 import { SessionsView } from './SessionsView';
 import { ActionsView } from './ActionsView';
 import { NotesView } from './NotesView';
@@ -125,8 +124,8 @@ const NextSessionLine: React.FC<{ client: Client; onSave?: (clientId: string, is
 
 interface ClientWorkspaceProps {
   client: Client;
-  activeTab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats';
-  setActiveTab: (tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats') => void;
+  activeTab: 'briefing' | 'sessions' | 'actions' | 'notes' | 'chats';
+  setActiveTab: (tab: 'briefing' | 'sessions' | 'actions' | 'notes' | 'chats') => void;
   onOpenEvidence: (evidenceGroup: EvidenceGroup) => void;
   onBackToClients: () => void;
   onUpdateClient: (updatedClient: Client) => void;
@@ -155,7 +154,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   const isReal = !!(client as any)._real;
 
   const handleNavigateToTab = (
-    tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats', 
+    tab: 'briefing' | 'sessions' | 'actions' | 'notes' | 'chats', 
     sessionId?: string
   ) => {
     if (sessionId) {
@@ -370,9 +369,8 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             <div className="border-b border-[#ECEFF3] flex items-center gap-1 overflow-x-auto">
               {[
                 { id: 'briefing', label: 'Briefing', icon: Sparkles },
-                { id: 'journey', label: 'Journey', icon: GitCommit },
                 { id: 'sessions', label: 'Sessions', icon: FileText, count: client.sessions.length },
-                { id: 'actions', label: 'Assign action', icon: CheckCircle2, count: client.actions.length },
+                { id: 'actions', label: 'Homework', icon: CheckCircle2, count: client.actions.length },
                 { id: 'notes', label: 'Notes', icon: Lock, count: client.notes.length },
                 ...(isReal ? [{ id: 'chats', label: 'Chats', icon: MessageCircle }] : []),
               ].map((tab) => {
@@ -412,13 +410,6 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             client={client}
             onOpenEvidence={onOpenEvidence}
             onNavigateToTab={handleNavigateToTab}
-          />
-        )}
-
-        {activeTab === 'journey' && (
-          <JourneyView
-            client={client}
-            onOpenEvidence={onOpenEvidence}
           />
         )}
 

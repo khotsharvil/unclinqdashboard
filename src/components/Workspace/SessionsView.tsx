@@ -33,7 +33,6 @@ interface SessionsViewProps {
   onUpdateTherapistObservation?: (sessionId: string, observations: string) => void;
   onUpdateSession?: (updated: SessionRecord) => void;
   onLogActivity?: (sessionId: string, activity: string, response: string) => void;
-  onAddSession?: (newSession: Partial<SessionRecord>) => void;
   onOpenEvidence?: (evidenceGroupId: string) => void;
 }
 
@@ -45,7 +44,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   onUpdateTherapistObservation,
   onUpdateSession,
   onLogActivity,
-  onAddSession,
   onOpenEvidence,
 }) => {
   // Inline edit of a session card's fields (free-text; no fixed schema). draft is a
@@ -81,7 +79,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   // Navigation state: null means showing timeline list, or a specific session ID to view full workspace
   const [activeSessionId, setActiveSessionId] = useState<string | null>(selectedSessionId || null);
   const [filterType, setFilterType] = useState<SessionFilter>('all');
-  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [transcriptSearch, setTranscriptSearch] = useState<string>('');
   const [editingObservations, setEditingObservations] = useState<Record<string, string>>({});
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
@@ -99,25 +96,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   };
 
   // New session form state
-  const [newSessionData, setNewSessionData] = useState<{
-    date: string;
-    duration: string;
-    whatChanged: string;
-    whatDiscussed: string;
-    therapeuticWork: string;
-    clientResponse: string;
-    agreedAction: string;
-    keyThemes: string;
-  }>({
-    date: '31 Aug 2026',
-    duration: '45 min',
-    whatChanged: 'Practiced reframing 3 times; noticed reduced evening sleep latency.',
-    whatDiscussed: 'Reviewed cognitive reframing logs and explored boundaries around evening work messages.',
-    therapeuticWork: 'Boundary communication scripting & cognitive restructuring',
-    clientResponse: '“I feel much more in control when I have a pre-written boundary template.”',
-    agreedAction: 'Send boundary email to team and log somatic reactions.',
-    keyThemes: 'Work stress, Boundary setting, Sleep',
-  });
 
   useEffect(() => {
     if (selectedSessionId) {
@@ -141,71 +119,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
     }
   };
 
-  const handleCreateSession = (e: React.FormEvent) => {
-    e.preventDefault();
-    const nextSessionNum = client.sessions.length + 1;
-    const created: Partial<SessionRecord> = {
-      id: `session-${nextSessionNum}-${client.id}`,
-      sessionNumber: nextSessionNum,
-      date: newSessionData.date,
-      time: '12:30 PM',
-      duration: newSessionData.duration,
-      isInitialSession: false,
-      keyThemes: newSessionData.keyThemes.split(',').map(t => t.trim()).filter(Boolean),
-      summary: newSessionData.whatDiscussed,
-      continuity: {
-        builtOn: {
-          sessionNumber: nextSessionNum - 1,
-          summary: client.sessions[0]?.keyThemes?.slice(0, 2).join(' + ') || 'Previous session work',
-        },
-        ledTo: {
-          activityCount: 2,
-          description: `Between-session practice → Session ${nextSessionNum + 1}`,
-          nextSessionNumber: nextSessionNum + 1,
-        },
-      },
-      beforeSnapshot: {
-        whatChanged: newSessionData.whatChanged,
-        clientActivity: ['2 reframing attempts', '1 evening check-in'],
-        worthExploring: 'Sustaining boundaries under peak sprint deadlines',
-      },
-      duringWork: {
-        whatDiscussed: newSessionData.whatDiscussed,
-        therapeuticWork: newSessionData.therapeuticWork,
-        clientResponse: newSessionData.clientResponse,
-      },
-      afterTransition: {
-        agreedAction: newSessionData.agreedAction,
-        therapistNote: 'Strong alliance; check in on somatic stress levels next week.',
-        exercises: [newSessionData.agreedAction],
-      },
-      interventions: [newSessionData.therapeuticWork],
-      homework: newSessionData.agreedAction,
-      therapistObservations: 'Client was animated and engaged. Clear shift from passive rumination toward structured problem-solving.',
-      transcript: [
-        {
-          speaker: 'Therapist',
-          timestamp: '00:04:15',
-          text: `Let us examine how the practice went this past week.`,
-        },
-        {
-          speaker: 'Client',
-          timestamp: '00:04:35',
-          text: newSessionData.clientResponse,
-        },
-      ],
-    };
-
-    if (onAddSession) {
-      onAddSession(created);
-    } else {
-      // Direct local state simulation
-      client.sessions.unshift(created as SessionRecord);
-    }
-
-    setIsAddModalOpen(false);
-    setActiveSessionId(created.id || null);
-  };
 
   // Date range synthesis
   const sortedSessions = [...client.sessions].sort((a, b) => b.sessionNumber - a.sessionNumber);
@@ -314,14 +227,14 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
               style={{ background: '#0D9488' }}
             >
               <Check className="w-4 h-4" />
-              {approvingId === activeSession.id ? 'Approving…' : 'Approve & add to journey'}
+              {approvingId === activeSession.id ? 'Approving…' : 'Approve summary'}
             </button>
           </div>
         )}
         {activeSession.needsApproval && approvedIds.has(activeSession.id) && (
           <div className="flex items-center gap-2 p-4 rounded-2xl border border-[#CDEBE4] bg-[#F0FAF8] text-[13px] text-[#0F766E]">
             <CheckCircle2 className="w-4 h-4" />
-            <span>Approved — added to the journey and released to the client.</span>
+            <span>Approved. It now feeds the briefing, and its homework goes to the client.</span>
           </div>
         )}
 
@@ -429,15 +342,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
           </p>
         </div>
 
-        {/* Right side: + Add session button */}
-        <button
-          id="add-session-btn"
-          onClick={() => setIsAddModalOpen(true)}
-          className="u-btn-primary"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add session</span>
-        </button>
       </div>
 
       {/* Simple Filter Bar: All · Recent · Initial */}
@@ -777,142 +681,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
 
       </div>
 
-      {/* ========================================================================= */}
-      {/* MODAL: ADD NEW SESSION DIALOG                                            */}
-      {/* ========================================================================= */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white border border-[#ECEFF3] rounded-2xl max-w-xl w-full p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
-
-            <div className="flex items-center justify-between border-b border-[#F2F5F8] pb-3">
-              <div>
-                <h3 className="text-lg font-serif font-semibold text-[#10151F]">
-                  Log New Session ({client.name})
-                </h3>
-                <p className="text-xs text-[#6B7686]">
-                  Session <span className="font-mono tabular-nums">{client.sessions.length + 1}</span> · Longitudinal care tracking
-                </p>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 text-[#6B7686] hover:text-[#10151F] rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSession} className="space-y-4 text-xs sm:text-sm">
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="u-eyebrow block mb-1">Date</label>
-                  <input
-                    type="text"
-                    required
-                    value={newSessionData.date}
-                    onChange={(e) => setNewSessionData(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="u-eyebrow block mb-1">Duration</label>
-                  <input
-                    type="text"
-                    required
-                    value={newSessionData.duration}
-                    onChange={(e) => setNewSessionData(prev => ({ ...prev, duration: e.target.value }))}
-                    className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">Key Themes (comma-separated)</label>
-                <input
-                  type="text"
-                  required
-                  value={newSessionData.keyThemes}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, keyThemes: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                  placeholder="Work stress, Sleep, Rumination"
-                />
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">1. Before: What Changed Since Last Session</label>
-                <textarea
-                  rows={2}
-                  required
-                  value={newSessionData.whatChanged}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, whatChanged: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">2. During: What Was Discussed</label>
-                <textarea
-                  rows={2}
-                  required
-                  value={newSessionData.whatDiscussed}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, whatDiscussed: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">Therapeutic Work / Intervention</label>
-                <input
-                  type="text"
-                  required
-                  value={newSessionData.therapeuticWork}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, therapeuticWork: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">Client Response (Quote or Formulation)</label>
-                <textarea
-                  rows={2}
-                  required
-                  value={newSessionData.clientResponse}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, clientResponse: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="u-eyebrow block mb-1">3. After: Agreed Action</label>
-                <input
-                  type="text"
-                  required
-                  value={newSessionData.agreedAction}
-                  onChange={(e) => setNewSessionData(prev => ({ ...prev, agreedAction: e.target.value }))}
-                  className="w-full p-2.5 bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white transition-colors"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-[#F2F5F8] flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="u-btn-ghost"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="u-btn-primary"
-                >
-                  Create Session
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

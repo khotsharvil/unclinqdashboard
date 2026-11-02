@@ -20,10 +20,10 @@ interface HeaderProps {
   currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'admin';
   setCurrentView: (view: 'home' | 'clients' | 'workspace' | 'settings' | 'admin') => void;
   selectedClient: Client | null;
-  onSelectClient: (client: Client, tab?: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
+  onSelectClient: (client: Client, tab?: 'briefing' | 'sessions' | 'actions' | 'notes') => void;
   clients: Client[];
-  activeTab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes';
-  setActiveTab: (tab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
+  activeTab: 'briefing' | 'sessions' | 'actions' | 'notes';
+  setActiveTab: (tab: 'briefing' | 'sessions' | 'actions' | 'notes') => void;
   therapistProfile?: TherapistProfile;
   onOpenOnboarding?: () => void;
   onOpenInviteClient?: () => void;
@@ -251,11 +251,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="header-invite-client-btn"
                 onClick={onOpenInviteClient}
-                className="ml-0.5 px-3 py-1.5 rounded-lg text-[13px] font-medium bg-[#F1FAF9] hover:bg-[#E3F5F2] text-[#0F766E] transition-colors flex items-center gap-1.5 cursor-pointer"
-                title="Invite client to portal"
+                className="ml-0.5 px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0 text-[13px] font-medium bg-[#F1FAF9] hover:bg-[#E3F5F2] text-[#0F766E] transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Add client on WhatsApp"
               >
                 <UserPlus className="w-4 h-4 text-[#0D9488]" />
-                <span className="hidden sm:inline">Invite</span>
+                <span className="hidden sm:inline">Add client</span>
               </button>
             )}
 
@@ -369,7 +369,7 @@ export const Header: React.FC<HeaderProps> = ({
                           className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2.5 text-[#10151F] hover:bg-[#F4F6F9] transition-colors cursor-pointer"
                         >
                           <UserPlus className="w-4 h-4 text-[#6B7686]" />
-                          <span>Invite client to portal</span>
+                          <span>Add client</span>
                         </button>
                       )}
 

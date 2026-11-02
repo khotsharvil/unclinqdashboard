@@ -13,7 +13,6 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSent?: () => void;          // refresh the caseload list
-  onUseEmail?: () => void;      // fall back to the older email/code invite
 }
 
 // 10-digit Indian mobile → 91XXXXXXXXXX; anything else as typed (digits only).
@@ -27,7 +26,7 @@ const toWaDigits = (raw: string) => {
   return d.length === 10 ? `91${d}` : d;
 };
 
-export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, onUseEmail }) => {
+export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [language, setLanguage] = useState('');
@@ -153,11 +152,7 @@ export const WhatsAppInviteModal: React.FC<Props> = ({ isOpen, onClose, onSent, 
             {error && <p className="text-[13px] text-[#B42318] bg-[#FEF3F2] border border-[#FECDCA] rounded-lg px-3 py-2">{error}</p>}
 
             <div className="sticky -bottom-6 -mx-6 px-6 py-3 bg-white border-t border-[#F2F5F8] flex items-center justify-between gap-3">
-              {onUseEmail ? (
-                <button type="button" onClick={onUseEmail} className="shrink-0 whitespace-nowrap text-[13px] text-[#6B7686] hover:text-[#0F766E] underline underline-offset-2 cursor-pointer">
-                  Invite by email instead
-                </button>
-              ) : <span />}
+              <span />
               <div className="flex items-center gap-3">
               {missingHint && !sending && <span className="text-[12px] text-[#9AA4B2] text-right">{missingHint}</span>}
               <button type="submit" disabled={!canSend}

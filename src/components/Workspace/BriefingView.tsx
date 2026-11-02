@@ -216,6 +216,9 @@ const HomeworkRow: React.FC<{ item: BriefingHomework }> = ({ item }) => {
       {item.updates > 0 && (
         <p className="text-[12px] text-[#9AA4B2]">{item.updates} update{item.updates === 1 ? '' : 's'} on WhatsApp</p>
       )}
+      {item.reminders_stopped && (
+        <p className="text-[12px] text-[#B45309]">No reply to 3 WhatsApp reminders, so reminders have stopped.</p>
+      )}
       {shown.map((u, i) => (
         <div key={i} className="pl-3 border-l-2 border-[#CDEBE7]">
           {u.words

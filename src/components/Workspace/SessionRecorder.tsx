@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, Square, Upload, Loader2, Check, ShieldCheck, MonitorSmartphone, Users, AlertTriangle } from 'lucide-react';
+import { SessionReview } from './SessionReview';
 import { therapistApi } from '../../api';
 import { LevelTracker, ACTIVE_LEVEL, isHeadsetMic, isBluetoothMic } from './levelTracker';
 
@@ -77,7 +78,10 @@ const Warning: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 export const SessionRecorder: React.FC<{
   clientId: string; clientName: string; onClose: () => void; onDone?: () => void;
-}> = ({ clientId, clientName, onClose, onDone }) => {
+  nextSessionAt?: string | null; onSetNextSession?: (clientId: string, iso: string | null) => Promise<void>;
+}> = ({ clientId, clientName, onClose, onDone, nextSessionAt, onSetNextSession }) => {
+  // Set once the upload is accepted; when processing is ready the review opens here.
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [mode, setMode] = useState<'inperson' | 'online'>('inperson');
   const [phase, setPhase] = useState<'idle' | 'recording' | 'uploading' | 'tracking'>('idle');
@@ -304,6 +308,7 @@ export const SessionRecorder: React.FC<{
     try {
       const res = await therapistApi.uploadSession(clientId, blob, filename, new Date().toISOString(), levelsTimeline);
       const id = res.id;
+      setSessionId(id);
       setPhase('tracking'); setStatus('uploaded');
       pollRef.current = setInterval(async () => {
         try {
@@ -312,8 +317,7 @@ export const SessionRecorder: React.FC<{
           setStatus(st);
           if (st === 'ready' || st === 'failed') {
             clearInterval(pollRef.current);
-            if (st === 'ready') { onDone?.(); }
-            else setError('Processing failed. You can try again.');
+            if (st !== 'ready') setError('Processing failed. You can try again.');
           }
         } catch { /* keep polling */ }
       }, 3000);
@@ -348,6 +352,8 @@ export const SessionRecorder: React.FC<{
   }
 
   const stageIdx = STAGES.indexOf(status);
+  // Real recording processed: summary + homework review replaces the progress list.
+  const reviewing = !DEMO && phase === 'tracking' && status === 'ready' && !!sessionId;
   const inp = 'w-full';
   const modeBtn = (active: boolean) =>
     `flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[13px] font-medium transition-colors cursor-pointer ${
@@ -355,18 +361,28 @@ export const SessionRecorder: React.FC<{
     }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,21,31,0.45)' }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_24px_64px_rgba(16,21,31,0.18)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,21,31,0.45)' }} onClick={reviewing ? undefined : onClose}>
+      <div onClick={(e) => e.stopPropagation()} className={`w-full ${reviewing ? 'max-w-2xl' : 'max-w-md'} bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_24px_64px_rgba(16,21,31,0.18)] overflow-hidden max-h-[92vh] flex flex-col`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#F2F5F8]">
           <div>
-            <h2 className="text-[17px] font-serif font-semibold text-[#10151F]">Record session</h2>
+            <h2 className="text-[17px] font-serif font-semibold text-[#10151F]">{reviewing ? 'Review session' : 'Record session'}</h2>
             <p className="text-[12px] text-[#6B7686]">with {clientName}</p>
           </div>
           <button onClick={onClose} className="text-[#9AA4B2] hover:text-[#10151F]"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="px-6 py-5">
-          {phase === 'tracking' ? (
+        <div className="px-6 py-5 overflow-y-auto">
+          {reviewing && sessionId ? (
+            <SessionReview
+              sessionId={sessionId}
+              clientId={clientId}
+              clientName={clientName}
+              nextSessionAt={nextSessionAt}
+              onSetNextSession={onSetNextSession}
+              onLater={() => { onDone?.(); onClose(); }}
+              onApproved={() => { onDone?.(); onClose(); }}
+            />
+          ) : phase === 'tracking' ? (
             <div className="py-2">
               <p className="text-[14px] font-medium text-[#10151F] mb-3">{STAGE_LABEL[status] || 'Processing…'}</p>
               <div className="space-y-2">
@@ -379,7 +395,7 @@ export const SessionRecorder: React.FC<{
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-[#9AA4B2] mt-4">Audio is transcribed and discarded — never stored. You can close this; processing continues.</p>
+              <p className="text-[11px] text-[#9AA4B2] mt-4">Audio is transcribed and discarded, never stored. You can close this; processing continues, and the session waits for your review in the Sessions tab.</p>
               {status === 'ready' && <button onClick={onClose} className="u-btn-primary w-full justify-center mt-4">Done</button>}
             </div>
           ) : (

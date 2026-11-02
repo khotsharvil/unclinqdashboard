@@ -214,6 +214,8 @@ export interface RiskSignal {
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
   signals: (): Promise<{ signals: RiskSignal[] }> => api.get('/therapist/signals'),
+  // Every released homework item with ALL the client's updates (words vs summary).
+  homework: (id: string): Promise<{ homework: import('./types').BriefingHomework[] }> => api.get(`/therapist/clients/${id}/homework`),
   // One-tap WhatsApp logs as day series for the briefing's mood & sleep chart.
   wellbeing: (id: string, days = 14): Promise<{
     days: number;

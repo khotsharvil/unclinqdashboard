@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, CheckCircle2, Trash2, Check, Sparkles, Pencil, X, Wand2, Loader2 } from 'lucide-react';
-import { Client, ActionItem } from '../../types';
+import { Client, ActionItem, BriefingHomework } from '../../types';
 import { therapistApi } from '../../api';
 
 interface ActionsViewProps {
@@ -90,6 +90,42 @@ function specToKey(spec: string): string | null {
   return null;
 }
 
+const HW_STATUS: Record<string, { label: string; cls: string }> = {
+  done:        { label: 'Done',        cls: 'text-[#0F766E] bg-[#F1FAF9] border-[#CDEBE7]' },
+  partly:      { label: 'Partly',      cls: 'text-[#3A4453] bg-[#F4F6F8] border-[#E2E7EE]' },
+  not_yet:     { label: 'Not yet',     cls: 'text-[#B45309] bg-[#FEF3E2] border-[#F5D9A8]' },
+  not_started: { label: 'Not started', cls: 'text-[#6B7686] bg-white border-[#E2E7EE]' },
+};
+
+// The client's side of one homework item: their status, reminders, and their words.
+const ClientUpdates: React.FC<{ hw: BriefingHomework }> = ({ hw }) => {
+  const [all, setAll] = useState(false);
+  const st = HW_STATUS[hw.status] || HW_STATUS.not_started;
+  const shown = all ? hw.latest : hw.latest.slice(0, 2);
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center gap-2 flex-wrap text-[12px]">
+        <span className={`font-medium border rounded-full px-2 py-0.5 ${st.cls}`}>{st.label}</span>
+        <span className="text-[#9AA4B2]">{hw.updates ? `${hw.updates} update${hw.updates === 1 ? '' : 's'} from the client` : 'No updates from the client yet'}</span>
+      </div>
+      {hw.reminders_stopped && <p className="text-[12px] text-[#B45309]">No reply to 3 WhatsApp reminders, so reminders have stopped.</p>}
+      {shown.map((u, i) => (
+        <div key={i} className="pl-3 border-l-2 border-[#CDEBE7]">
+          {u.words
+            ? <p className="text-[14px] font-serif italic text-[#10151F] leading-[1.5]">“{u.words}”</p>
+            : <p className="text-[13px] text-[#3A4453]"><span className="text-[11px] uppercase tracking-wide text-[#9AA4B2] mr-1.5">Summary</span>{u.summary}</p>}
+          {u.at && <p className="text-[11px] text-[#9AA4B2] mt-0.5">{new Date(u.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>}
+        </div>
+      ))}
+      {hw.latest.length > 2 && (
+        <button onClick={() => setAll((v) => !v)} className="text-[12px] text-[#6B7686] hover:text-[#0F766E] cursor-pointer">
+          {all ? 'Show less' : `Show all ${hw.latest.length}`}
+        </button>
+      )}
+    </div>
+  );
+};
+
 export const ActionsView: React.FC<ActionsViewProps> = ({
   client,
   onAddAction,
@@ -97,6 +133,16 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
   onUpdateAction,
   onDeleteAction,
 }) => {
+  const [hwById, setHwById] = useState<Record<string, BriefingHomework>>({});
+  useEffect(() => {
+    if (!/^[0-9a-f-]{36}$/i.test(client.id)) return;
+    let live = true;
+    therapistApi.homework(client.id)
+      .then((r) => { if (live) setHwById(Object.fromEntries((r.homework || []).map((h) => [h.id, h]))); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [client.id, client.actions.length]);
+
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState('Daily');
   const [rationale, setRationale] = useState('');
@@ -370,7 +416,7 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
         {client.actions.length === 0 ? (
           <div className="p-8 text-center bg-[#FCFDFE] border border-[#F2F5F8] rounded-xl">
             <p className="text-[13px] sm:text-sm text-[#6B7686]">
-              No actions assigned yet. Use the form above to assign an action to {firstName}.
+              No homework yet. Use the form above to set some for {firstName}.
             </p>
           </div>
         ) : (
@@ -402,6 +448,7 @@ export const ActionsView: React.FC<ActionsViewProps> = ({
                         <span>Assigned: <span className="font-mono">{action.assignedDate}</span></span>
                       </div>
                       {action.rationale && <p className="text-[12.5px] text-[#6B7686] italic leading-snug">Why: {action.rationale}</p>}
+                      {hwById[action.id] && <ClientUpdates hw={hwById[action.id]} />}
                     </div>
                   )}
 

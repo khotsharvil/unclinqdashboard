@@ -15,6 +15,7 @@ import {
   CalendarClock
 } from 'lucide-react';
 import { SessionRecorder } from './SessionRecorder';
+import { SessionReview } from './SessionReview';
 import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS, RiskSignal } from '../../api';
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
@@ -134,6 +135,7 @@ interface ClientWorkspaceProps {
   signals?: RiskSignal[];
   onAckSignal?: (signalId: string) => void;
   onSetNextSession?: (clientId: string, iso: string | null) => Promise<void>;
+  onReload?: () => void;
 }
 
 export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
@@ -148,9 +150,12 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   signals = [],
   onAckSignal,
   onSetNextSession,
+  onReload,
 }) => {
   const [selectedSessionId, setSelectedSessionId] = React.useState<string | null>(null);
   const [recording, setRecording] = React.useState(false);
+  const [reviewId, setReviewId] = React.useState<string | null>(null);
+  const toReview = client.sessions.find((s: any) => s.needsApproval);
   const isReal = !!(client as any)._real;
 
   const handleNavigateToTab = (
@@ -340,6 +345,18 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
 
             </div>
 
+            {toReview && !recording && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 rounded-2xl border border-[#F3E2C0] bg-[#FCF7EC]">
+                <div>
+                  <p className="text-sm font-semibold text-[#8A5A12]">Session {toReview.date ? `of ${toReview.date} ` : ''}is waiting for your review</p>
+                  <p className="text-[13px] text-[#9A7B45] mt-0.5">Check the summary and send the homework. Nothing reaches {client.name.split(/\s+/)[0]} until you approve.</p>
+                </div>
+                <button onClick={() => setReviewId(toReview.id)} className="shrink-0 self-start sm:self-auto text-[13px] font-medium px-3.5 py-2 rounded-lg text-white cursor-pointer" style={{ background: '#0D9488' }}>
+                  Review &amp; send homework
+                </button>
+              </div>
+            )}
+
             {signals.length > 0 && (
               <div className="rounded-2xl border border-[#FED7AA] bg-[#FFFBF5] divide-y divide-[#FDEBD3]">
                 {signals.map((sig) => (
@@ -421,6 +438,8 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
             onUpdateSession={handleUpdateSession}
             onLogActivity={handleLogActivity}
             onOpenEvidence={onOpenEvidence}
+            onSetNextSession={onSetNextSession}
+            onReviewed={() => onReload?.()}
           />
         )}
 
@@ -446,12 +465,36 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
         {activeTab === 'chats' && <ChatsView client={client} />}
       </div>
 
+      {reviewId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,21,31,0.45)' }}>
+          <div className="w-full max-w-2xl bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_24px_64px_rgba(16,21,31,0.18)] overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-[#F2F5F8]">
+              <h2 className="text-[17px] font-serif font-semibold text-[#10151F]">Review session</h2>
+              <p className="text-[12px] text-[#6B7686]">with {client.name}</p>
+            </div>
+            <div className="px-6 py-5 overflow-y-auto">
+              <SessionReview
+                sessionId={reviewId}
+                clientId={client.id}
+                clientName={client.name}
+                nextSessionAt={client.nextSession?.at}
+                onSetNextSession={onSetNextSession}
+                onLater={() => setReviewId(null)}
+                onApproved={() => { setReviewId(null); onReload?.(); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {recording && (
         <SessionRecorder
           clientId={client.id}
           clientName={client.name}
+          nextSessionAt={client.nextSession?.at}
+          onSetNextSession={onSetNextSession}
           onClose={() => setRecording(false)}
-          onDone={() => { setActiveTab('sessions'); }}
+          onDone={() => onReload?.()}
         />
       )}
 

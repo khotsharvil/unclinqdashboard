@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Client, SessionRecord } from '../../types';
 import { therapistApi } from '../../api';
+import { SessionReview } from './SessionReview';
 
 interface SessionsViewProps {
   client: Client;
@@ -34,6 +35,8 @@ interface SessionsViewProps {
   onUpdateSession?: (updated: SessionRecord) => void;
   onLogActivity?: (sessionId: string, activity: string, response: string) => void;
   onOpenEvidence?: (evidenceGroupId: string) => void;
+  onSetNextSession?: (clientId: string, iso: string | null) => Promise<void>;
+  onReviewed?: () => void;
 }
 
 type SessionFilter = 'all' | 'recent' | 'initial';
@@ -45,7 +48,10 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   onUpdateSession,
   onLogActivity,
   onOpenEvidence,
+  onSetNextSession,
+  onReviewed,
 }) => {
+  const [reviewId, setReviewId] = useState<string | null>(null);
   // Inline edit of a session card's fields (free-text; no fixed schema). draft is a
   // deep copy of the session being edited; Save writes the whole record back.
   const [editCardId, setEditCardId] = useState<string | null>(null);
@@ -84,16 +90,6 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
   const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
   // Draft-session approval (a fresh recording is a draft until the therapist approves it).
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [approveErr, setApproveErr] = useState<string | null>(null);
-  const approveSession = async (sessionId: string) => {
-    setApprovingId(sessionId); setApproveErr(null);
-    try {
-      await therapistApi.approveSession(sessionId);
-      setApprovedIds(prev => new Set(prev).add(sessionId));
-    } catch { setApproveErr('Could not approve this session. Please try again.'); }
-    finally { setApprovingId(null); }
-  };
 
   // New session form state
 
@@ -152,6 +148,28 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
 
     return (
       <div className="space-y-6 w-full pb-12">
+        {reviewId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(16,21,31,0.45)' }}>
+            <div className="w-full max-w-2xl bg-white rounded-2xl border border-[#ECEFF3] shadow-[0_24px_64px_rgba(16,21,31,0.18)] overflow-hidden max-h-[92vh] flex flex-col">
+              <div className="px-6 py-4 border-b border-[#F2F5F8]">
+                <h2 className="text-[17px] font-serif font-semibold text-[#10151F]">Review session</h2>
+                <p className="text-[12px] text-[#6B7686]">with {client.name}</p>
+              </div>
+              <div className="px-6 py-5 overflow-y-auto">
+                <SessionReview
+                  sessionId={reviewId}
+                  clientId={client.id}
+                  clientName={client.name}
+                  nextSessionAt={client.nextSession?.at}
+                  onSetNextSession={onSetNextSession}
+                  onLater={() => setReviewId(null)}
+                  onApproved={() => { setApprovedIds((prev) => new Set(prev).add(reviewId)); setReviewId(null); onReviewed?.(); }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Back Navigation Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 bg-white rounded-2xl border border-[#ECEFF3]">
           <div className="flex items-center space-x-3">
@@ -215,19 +233,17 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
             <div className="flex items-start gap-2.5">
               <FileText className="w-4 h-4 text-[#B45309] mt-0.5" />
               <div>
-                <p className="text-[13px] font-semibold text-[#8A5A12]">Draft — review &amp; approve</p>
-                <p className="text-[12px] text-[#9A7B45] mt-0.5">The AI summary and any actions stay hidden from the client until you approve them.</p>
-                {approveErr && <p className="text-[12px] text-[#B0332F] mt-1">{approveErr}</p>}
+                <p className="text-[13px] font-semibold text-[#8A5A12]">Waiting for your review</p>
+                <p className="text-[12px] text-[#9A7B45] mt-0.5">Check the summary and homework. Nothing reaches the client until you approve.</p>
               </div>
             </div>
             <button
-              onClick={() => approveSession(activeSession.id)}
-              disabled={approvingId === activeSession.id}
+              onClick={() => setReviewId(activeSession.id)}
               className="inline-flex items-center gap-1.5 text-[13px] px-3.5 py-2 rounded-lg text-white font-medium cursor-pointer shrink-0"
               style={{ background: '#0D9488' }}
             >
               <Check className="w-4 h-4" />
-              {approvingId === activeSession.id ? 'Approving…' : 'Approve summary'}
+              Review &amp; send homework
             </button>
           </div>
         )}

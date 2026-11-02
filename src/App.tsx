@@ -362,6 +362,7 @@ export default function App() {
             signals={signals.filter((x) => x.client_id === selectedClient.id)}
             onAckSignal={handleAckSignal}
             onSetNextSession={DEMO ? undefined : handleSetNextSession}
+            onReload={reloadSelectedClient}
           />
         )}
 

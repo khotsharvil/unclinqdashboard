@@ -65,7 +65,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       onAddNote({
         title: noteTitle.trim() || 'Clinical reflection',
         content: noteContent.trim(),
-        date: '27 Aug 2026',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         isPrivate: true,
         category,
       });

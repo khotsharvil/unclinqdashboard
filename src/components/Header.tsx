@@ -10,15 +10,15 @@ import {
   UserPlus,
   Compass,
   CheckCircle2,
-  Calendar,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from 'lucide-react';
 import { Client, TherapistProfile } from '../types';
 import { InstallAppButton } from './InstallAppButton';
 
 interface HeaderProps {
-  currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin';
-  setCurrentView: (view: 'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin') => void;
+  currentView: 'home' | 'clients' | 'workspace' | 'settings' | 'admin';
+  setCurrentView: (view: 'home' | 'clients' | 'workspace' | 'settings' | 'admin') => void;
   selectedClient: Client | null;
   onSelectClient: (client: Client, tab?: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes') => void;
   clients: Client[];
@@ -28,6 +28,7 @@ interface HeaderProps {
   onOpenOnboarding?: () => void;
   onOpenInviteClient?: () => void;
   isAdmin?: boolean;
+  onSignOut?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenOnboarding,
   onOpenInviteClient,
   isAdmin,
+  onSignOut,
 }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -181,7 +183,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Clients</span>
             </button>
 
-            {/* Calendar hidden for MVP — scheduling isn't persisted; focus on Clients + Briefings. */}
 
             {/* Quick Client Search */}
             <div className="relative">
@@ -386,8 +387,22 @@ export const Header: React.FC<HeaderProps> = ({
                           className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2.5 text-[#10151F] hover:bg-[#F4F6F9] transition-colors cursor-pointer"
                         >
                           <ShieldCheck className="w-4 h-4 text-[#6B7686]" />
-                          <span>Admin: add therapist</span>
+                          <span>Admin: therapists</span>
                         </button>
+                      )}
+
+                      {onSignOut && (
+                        <>
+                          <div className="my-1 border-t border-[#F2F5F8]" />
+                          <button
+                            id="dropdown-sign-out-btn"
+                            onClick={() => { setProfileDropdownOpen(false); onSignOut(); }}
+                            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2.5 text-[#10151F] hover:bg-[#F4F6F9] transition-colors cursor-pointer"
+                          >
+                            <LogOut className="w-4 h-4 text-[#6B7686]" />
+                            <span>Sign out</span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

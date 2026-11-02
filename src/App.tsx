@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { INITIAL_THERAPIST_PROFILE } from './data/therapistData';
-import { Client, EvidenceGroup, ActivityItem, TherapistNote, TherapistProfile, ClientInvitation, ScheduledSession } from './types';
-import { CURRENT_WEEK_DATES, generateInitialSessions } from './data/calendarUtils';
+import { Client, EvidenceGroup, ActivityItem, TherapistProfile, ClientInvitation } from './types';
 import { INITIAL_CLIENTS, INITIAL_ACTIVITIES } from './data/mockData';
 import { ADDITIONAL_PRACTICE_CLIENTS } from './data/caseloadClients';
 
@@ -14,7 +13,6 @@ const DEMO_CASELOAD: Client[] = DEMO ? [...INITIAL_CLIENTS, ...ADDITIONAL_PRACTI
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { ClientsView } from './components/ClientsView';
-import { CalendarView } from './components/CalendarView';
 import { ClientWorkspace } from './components/Workspace/ClientWorkspace';
 import { SettingsView } from './components/SettingsView';
 import { AdminView } from './components/AdminView';
@@ -22,8 +20,8 @@ import { EvidencePanel } from './components/EvidencePanel';
 import { TherapistOnboardingModal } from './components/TherapistOnboardingModal';
 import { Login } from './components/Login';
 import { TherapistOnboarding } from './components/TherapistOnboarding';
-import { getUser, authApi, therapistApi, invitationsApi, consoleApi } from './api';
-import { loadRealClient, toClientStub, toActivities, toScheduledSessions, pendingInviteStubs } from './adapters/toClient';
+import { getUser, clearAuth, authApi, therapistApi, invitationsApi, consoleApi, RiskSignal } from './api';
+import { loadRealClient, toClientStub, toActivities, toNextSession, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { InviteClientModal } from './components/InviteClientModal';
 import { WhatsAppInviteModal } from './components/WhatsAppInviteModal';
@@ -42,8 +40,12 @@ export default function App() {
   // (DEMO mode seeds the sample caseload so a backendless preview looks full.)
   const [clients, setClients] = useState<Client[]>(DEMO_CASELOAD);
   const [activities, setActivities] = useState<ActivityItem[]>(DEMO ? INITIAL_ACTIVITIES : []);
-  const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'calendar' | 'admin'>('home');
-  const [scheduledSessions, setScheduledSessions] = useState<ScheduledSession[]>(DEMO ? generateInitialSessions(DEMO_CASELOAD) : []);
+  const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'admin'>('home');
+  // Open risk signals across the caseload (Emora-raised; open until acknowledged).
+  const [signals, setSignals] = useState<RiskSignal[]>([]);
+  // Account-level block (verification pending / rejected) and the last failed save.
+  const [accountBlock, setAccountBlock] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Selected client for Workspace
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -101,77 +103,9 @@ export default function App() {
     setTherapistProfile(updatedProfile);
   };
 
-  // Calendar Session Handlers
-  const handleUpdateSession = (updatedSession: ScheduledSession) => {
-    setScheduledSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
-
-    // Synchronize client's nextSession and recurringSchedule
-    setClients(prevClients => prevClients.map(c => {
-      if (c.id === updatedSession.clientId) {
-        const isToday = updatedSession.dayOfWeek === 'Thursday';
-        return {
-          ...c,
-          nextSession: {
-            display: `${isToday ? 'Today' : updatedSession.dayOfWeek} · ${updatedSession.time}`,
-            time: updatedSession.time,
-            date: updatedSession.date,
-            isToday,
-            dayOfWeek: updatedSession.dayOfWeek,
-            duration: updatedSession.duration,
-            isRecurring: updatedSession.isRecurring,
-            cadence: updatedSession.recurringCadence,
-            location: updatedSession.location,
-          },
-          recurringSchedule: updatedSession.isRecurring ? {
-            dayOfWeek: updatedSession.dayOfWeek,
-            time: updatedSession.time,
-            duration: updatedSession.duration,
-            cadence: updatedSession.recurringCadence,
-            location: updatedSession.location,
-          } : undefined,
-        };
-      }
-      return c;
-    }));
-  };
-
-  const handleAddSession = (newSession: ScheduledSession) => {
-    setScheduledSessions(prev => [newSession, ...prev]);
-
-    setClients(prevClients => prevClients.map(c => {
-      if (c.id === newSession.clientId) {
-        const isToday = newSession.dayOfWeek === 'Thursday';
-        return {
-          ...c,
-          nextSession: {
-            display: `${isToday ? 'Today' : newSession.dayOfWeek} · ${newSession.time}`,
-            time: newSession.time,
-            date: newSession.date,
-            isToday,
-            dayOfWeek: newSession.dayOfWeek,
-            duration: newSession.duration,
-            isRecurring: newSession.isRecurring,
-            cadence: newSession.recurringCadence,
-            location: newSession.location,
-          },
-          recurringSchedule: newSession.isRecurring ? {
-            dayOfWeek: newSession.dayOfWeek,
-            time: newSession.time,
-            duration: newSession.duration,
-            cadence: newSession.recurringCadence,
-            location: newSession.location,
-          } : undefined,
-        };
-      }
-      return c;
-    }));
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    setScheduledSessions(prev => prev.filter(s => s.id !== sessionId));
-  };
-
   const handleSendClientInvitation = (invitation: ClientInvitation) => {
+    // Real accounts: the invite already exists on the backend; just refresh the list.
+    if (!DEMO) { setCaseloadVersion((v) => v + 1); return; }
     const sessionDay = invitation.sessionDay || 'Thursday';
     const sessionTime = invitation.sessionTime || '10:00 AM';
     const duration = invitation.duration || '50 min';
@@ -179,7 +113,7 @@ export default function App() {
     const cadence = invitation.recurringCadence || 'weekly';
     const location = invitation.location || 'in_person';
     const isToday = sessionDay === 'Thursday';
-    const sessionDate = invitation.sessionDate || (CURRENT_WEEK_DATES[sessionDay]?.date || '2026-08-27');
+    const sessionDate = invitation.sessionDate || '2026-08-27';
 
     const nextSessionInfo = {
       display: `${isToday ? 'Today' : sessionDay} · ${sessionTime}`,
@@ -223,26 +157,6 @@ export default function App() {
         setSelectedClient(updated[existingIndex]);
       }
 
-      // Add or update session record in scheduledSessions
-      const sessRecord: ScheduledSession = {
-        id: `sess-${existingClient.id}-${Date.now()}`,
-        clientId: existingClient.id,
-        clientName: existingClient.name,
-        avatarInitials: existingClient.avatarInitials,
-        clientStatus: existingClient.status,
-        briefingStatus: existingClient.briefingStatus,
-        date: sessionDate,
-        dayOfWeek: sessionDay,
-        time: sessionTime,
-        duration,
-        location,
-        isRecurring,
-        recurringCadence: cadence,
-        status: 'scheduled',
-        notes: `Invited schedule: ${isRecurring ? `Recurring ${cadence}` : 'One-time session'}`,
-        focusTheme: existingClient.briefing?.observedPattern?.text?.slice(0, 60) || 'Intake follow-up',
-      };
-      setScheduledSessions(prev => [sessRecord, ...prev.filter(s => s.clientId !== existingClient.id)]);
     } else {
       // Create new client record from invitation
       const initials = invitation.clientName
@@ -315,26 +229,6 @@ export default function App() {
 
       setClients(prev => [newClientRecord, ...prev]);
 
-      // Add to scheduledSessions
-      const sessRecord: ScheduledSession = {
-        id: `sess-${newId}-${Date.now()}`,
-        clientId: newId,
-        clientName: invitation.clientName,
-        avatarInitials: initials || 'CL',
-        clientStatus: 'active',
-        briefingStatus: 'ready',
-        date: sessionDate,
-        dayOfWeek: sessionDay,
-        time: sessionTime,
-        duration,
-        location,
-        isRecurring,
-        recurringCadence: cadence,
-        status: 'scheduled',
-        notes: `Intake appointment (${isRecurring ? `Recurring ${cadence}` : 'One-time'})`,
-        focusTheme: 'Initial intake and goals alignment',
-      };
-      setScheduledSessions(prev => [sessRecord, ...prev]);
     }
   };
 
@@ -425,104 +319,6 @@ export default function App() {
     }
   };
 
-  // Quick add note from Scratchpad on Home view
-  const handleQuickAddNote = (clientId: string, noteText: string) => {
-    const newNote: TherapistNote = {
-      id: `note-${Date.now()}`,
-      date: '27 Aug 2026',
-      title: 'Pre-session Reflection',
-      content: noteText,
-      isPrivate: true,
-      category: 'clinical_impression',
-    };
-
-    setClients(prev => prev.map(c => {
-      if (c.id === clientId) {
-        return {
-          ...c,
-          notes: [newNote, ...c.notes],
-        };
-      }
-      return c;
-    }));
-  };
-
-  // Add new client
-  const handleAddClient = (newClientData: Partial<Client>) => {
-    const id = newClientData.name?.toLowerCase().replace(/\s+/g, '-') || `client-${Date.now()}`;
-    const newClient: Client = {
-      id,
-      name: newClientData.name || 'New Client',
-      avatarInitials: newClientData.avatarInitials || 'NC',
-      preferredPronouns: newClientData.preferredPronouns || 'they/them',
-      status: 'active',
-      briefingStatus: 'ready',
-      nextSession: {
-        display: 'Next week',
-        time: '10:00 AM',
-        date: '2026-09-02',
-        isToday: false,
-      },
-      lastSession: null,
-      briefing: {
-        whatChanged: {
-          text: 'Initial profile created. Awaiting first check-in log or session note.',
-          mentionsCount: 0,
-          journalCount: 0,
-          conversationsCount: 0,
-          evidenceGroupId: `ev-${id}-initial`,
-        },
-        clientWantsToDiscuss: {
-          quote: 'Initial intake and goals discussion.',
-          context: 'Intake form reflection',
-          conversationEvidenceId: `ev-${id}-initial`,
-        },
-        whatTheyTried: [],
-        observedPattern: {
-          text: 'Baseline evaluation in progress.',
-          observedCount: 1,
-          lastSeen: 'Today',
-          evidenceGroupId: `ev-${id}-initial`,
-          clinicalNoteSeparateFromObservation: 'Awaiting longitudinal baseline observations.',
-        },
-        worthExploring: [
-          'Review primary presenting concerns and therapeutic goals.',
-          'Assess current coping strategies and support systems.',
-        ],
-        context: {
-          previousSessionDate: 'None',
-          keyPoints: ['Initial intake session scheduled'],
-          previousSessionId: '',
-        },
-      },
-      journeyPatterns: [],
-      sessions: [],
-      actions: [],
-      notes: [],
-      evidenceStore: {
-        [`ev-${id}-initial`]: {
-          id: `ev-${id}-initial`,
-          title: 'Initial Intake Record',
-          subtitle: 'Baseline onboarding data',
-          items: [
-            {
-              id: 'ev-init-1',
-              date: 'Today',
-              source: 'Check-in',
-              snippet: 'Client completed initial intake paperwork and consent for care.',
-              context: 'Intake registration',
-            },
-          ],
-        },
-      },
-    };
-
-    setClients(prev => [newClient, ...prev]);
-    setSelectedClient(newClient);
-    setActiveWorkspaceTab('briefing');
-    setCurrentView('workspace');
-  };
-
   // Confirm onboarding status from the backend (cached login may be stale).
   useEffect(() => {
     if (DEMO || !authed) return;
@@ -568,16 +364,62 @@ export default function App() {
         return;
       }
       const stubs = rows.map(toClientStub);
-      setSelectedClient(stubs[0]);
-      // Home feed + Calendar, derived from the same rows (no extra fetch).
+      setSelectedClient((prev) => prev || stubs[0]);
+      // Home feed, derived from the same rows (no extra fetch).
       setActivities(toActivities(rows));
-      setScheduledSessions(toScheduledSessions(rows));
       // Append pending invitations as non-clickable "pending" rows.
       invitationsApi.list()
         .then((ir: any) => setClients([...stubs, ...pendingInviteStubs(ir?.invitations || [])]))
         .catch(() => setClients(stubs));
     }).catch(() => {});
-  }, [authed, onboarded]);
+    therapistApi.signals().then((r) => setSignals(r?.signals || [])).catch(() => {});
+  }, [authed, onboarded, caseloadVersion]);
+
+  // Failed API calls: one clear banner for an account block, a toast for a failed save.
+  useEffect(() => {
+    const onErr = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (d.code === 'verification_pending' || d.code === 'verification_rejected') { setAccountBlock(d.message); return; }
+      if (d.method !== 'GET') setSaveError(d.message || 'Please try again.');
+    };
+    window.addEventListener('uc:api-error', onErr);
+    return () => window.removeEventListener('uc:api-error', onErr);
+  }, []);
+  useEffect(() => {
+    if (!saveError) return;
+    const t = setTimeout(() => setSaveError(null), 6000);
+    return () => clearTimeout(t);
+  }, [saveError]);
+
+  const handleAckSignal = (signalId: string) => {
+    therapistApi.ackSignal(signalId)
+      .then(() => {
+        const ackedClient = signals.find((x) => x.id === signalId)?.client_id;
+        const rest = signals.filter((x) => x.id !== signalId);
+        setSignals(rest);
+        // The client goes back to "active" once their last open signal is acknowledged.
+        if (ackedClient && !rest.some((x) => x.client_id === ackedClient)) {
+          setClients((cs) => cs.map((c) => (c.id === ackedClient ? { ...c, status: 'active' } : c)));
+          setSelectedClient((c) => (c && c.id === ackedClient ? { ...c, status: 'active' } : c));
+        }
+      })
+      .catch(() => {});
+  };
+
+  // Save (or clear) a client's next session. This one date drives the WhatsApp
+  // prep message the day before and the briefing's "since last session" window.
+  const handleSetNextSession = async (clientId: string, iso: string | null) => {
+    await therapistApi.setNextSession(clientId, iso);
+    const nextSession = toNextSession(iso);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, nextSession } : c)));
+    setSelectedClient((c) => (c && c.id === clientId ? { ...c, nextSession } : c));
+  };
+
+  const handleSignOut = async () => {
+    try { await authApi.logout(); } catch { /* sign out locally either way */ }
+    clearAuth();
+    window.location.reload();
+  };
 
   // Auth gate — the dashboard now runs against the real B2B2C backend.
   // Admin menu only for the Unclinq team (backend checks ADMIN_EMAILS; anyone else gets 403).
@@ -608,7 +450,22 @@ export default function App() {
         therapistProfile={therapistProfile}
         onOpenInviteClient={() => handleOpenInviteModal()}
         isAdmin={isAdmin}
+        onSignOut={DEMO ? undefined : handleSignOut}
       />
+
+      {accountBlock && (
+        <div role="alert" className="bg-[#FFF7ED] border-b border-[#FED7AA] px-4 sm:px-6 lg:px-8 py-3 text-[13px] text-[#9A3412]">
+          <div className="max-w-5xl mx-auto">
+            <span className="font-semibold">Client details are locked for now.</span> {accountBlock}
+          </div>
+        </div>
+      )}
+      {saveError && (
+        <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100%-32px)] px-4 py-3 rounded-xl bg-[#10151F] text-white text-[13px] shadow-lg flex items-center gap-3">
+          <span>Not saved: {saveError}</span>
+          <button onClick={() => setSaveError(null)} className="text-[#9AA4B2] hover:text-white cursor-pointer">Dismiss</button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
@@ -618,8 +475,8 @@ export default function App() {
             activities={activities}
             onOpenClientBriefing={handleOpenClientBriefing}
             onNavigateToClients={() => setCurrentView('clients')}
-            onNavigateToCalendar={() => setCurrentView('calendar')}
-            onQuickAddNote={handleQuickAddNote}
+            signals={signals}
+            onAckSignal={handleAckSignal}
             therapistProfile={therapistProfile}
             onOpenInviteClient={() => handleOpenInviteModal()}
           />
@@ -633,19 +490,6 @@ export default function App() {
           />
         )}
 
-        {currentView === 'calendar' && (
-          <CalendarView
-            clients={clients}
-            sessions={scheduledSessions}
-            onUpdateSession={handleUpdateSession}
-            onAddSession={handleAddSession}
-            onDeleteSession={handleDeleteSession}
-            onOpenClientBriefing={handleOpenClientBriefing}
-            onOpenClientWorkspace={handleSelectClient}
-            onOpenInviteModal={() => handleOpenInviteModal()}
-          />
-        )}
-
         {currentView === 'workspace' && selectedClient && (
           <ClientWorkspace
             client={selectedClient}
@@ -656,6 +500,9 @@ export default function App() {
             onUpdateClient={handleUpdateClient}
             onOpenInviteClient={handleOpenInviteModal}
             onSeedHistory={!(selectedClient as any)._pending ? () => setIsSeedHistoryOpen(true) : undefined}
+            signals={signals.filter((x) => x.client_id === selectedClient.id)}
+            onAckSignal={handleAckSignal}
+            onSetNextSession={DEMO ? undefined : handleSetNextSession}
           />
         )}
 

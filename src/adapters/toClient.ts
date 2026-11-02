@@ -8,7 +8,7 @@
 import { therapistApi } from '../api';
 import type {
   Client, BriefingData, JourneyPattern, SessionRecord, ActionItem, TherapistNote,
-  ActivityItem, ScheduledSession,
+  ActivityItem, NextSessionInfo,
 } from '../types';
 
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -26,7 +26,8 @@ function msToTs(ms?: number): string {
 }
 
 function initials(name = ''): string {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  // Letters only: "Sharvil (WhatsApp test)" → "SW", not "S(".
+  const parts = String(name).replace(/[^\p{L}\p{M}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return 'C';
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
 }
@@ -41,6 +42,23 @@ function fmtFull(iso?: string | null): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// The one saved next session (therapist_client_links.next_session_at) → display info.
+// "Today · 4:30 pm", "Tomorrow · 10:00 am", "Thu 6 Nov · 10:00 am".
+export function toNextSession(iso?: string | null): NextSessionInfo | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  const dayKey = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const isToday = dayKey(d) === dayKey(today);
+  const day = isToday ? 'Today'
+    : dayKey(d) === dayKey(tomorrow) ? 'Tomorrow'
+    : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return { at: d.toISOString(), display: `${day} · ${time}`, time, date: d.toISOString().slice(0, 10), isToday, dayOfWeek: DOW[d.getDay()] };
 }
 
 const ACTION_STATUS: Record<string, ActionItem['status']> = {
@@ -129,6 +147,8 @@ function toBriefing(structured: any, journey: any, latestSessionDate: string): B
   if (s.engagement?.direction === 'quieter') explore.push('Quieter than their recent baseline — may be worth gently exploring.');
   if (s.engagement?.assigned_not_started > 0) explore.push('An assigned action hasn’t been picked up yet.');
   if (s.wants_to_discuss) explore.push(s.wants_to_discuss);
+  // Session-prep answer (WhatsApp, the day before): what the client says helped.
+  if (s.what_helped) explore.push(`They say this helped: "${s.what_helped}"`);
   // Fallbacks so this is never empty — but as genuine, gentle EXPLORATION PROMPTS,
   // NOT a copy of the observed pattern (§04) or the quote (§02). Kept short and
   // phrased as an opening the therapist might take in-session.
@@ -328,9 +348,7 @@ export function toClientStub(row: any): Client {
     gender: row.gender || null,
     status: (row.open_signals > 0 ? 'needs_attention' : 'active'),
     briefingStatus: row.new_activity_since_briefing ? 'new_activity' : (row.latest_briefing_at ? 'ready' : 'no_activity'),
-    nextSession: row.next_session_at
-      ? { display: fmtDate(row.next_session_at), time: '', date: String(row.next_session_at).slice(0, 10), isToday: false }
-      : null,
+    nextSession: toNextSession(row.next_session_at),
     lastSession: row.latest_session_at
       ? { display: fmtDate(row.latest_session_at), date: String(row.latest_session_at).slice(0, 10) }
       : null,
@@ -442,9 +460,7 @@ export async function loadRealClient(clientId: string): Promise<Client> {
       ? { status: ov.wa_status === 'opted_out' ? 'paused' : 'joined', lastMessageAt: ov.wa_last_message_at || null }
       : undefined,
     joinedAt: ov.consented_at || null,
-    nextSession: ov.next_session_at
-      ? { display: fmtDate(ov.next_session_at), time: '', date: String(ov.next_session_at).slice(0, 10), isToday: false }
-      : null,
+    nextSession: toNextSession(ov.next_session_at),
     lastSession: ov.latest_session?.occurred_at
       ? { display: fmtDate(ov.latest_session.occurred_at), date: String(ov.latest_session.occurred_at).slice(0, 10) }
       : null,
@@ -478,31 +494,6 @@ export function toActivities(rows: any[]): ActivityItem[] {
       timeAgo: timeAgo(r.latest_activity_at),
       type: 'journal',
     }));
-}
-
-// Calendar: one scheduled session per client with a next_session_at.
-export function toScheduledSessions(rows: any[]): ScheduledSession[] {
-  return (rows || [])
-    .filter((r) => r.next_session_at)
-    .map((r) => {
-      const dt = new Date(r.next_session_at);
-      return {
-        id: `sess-${r.client_id}`,
-        clientId: r.client_id,
-        clientName: r.name || 'Client',
-        avatarInitials: initials(r.name),
-        clientStatus: (r.open_signals > 0 ? 'needs_attention' : 'active') as Client['status'],
-        briefingStatus: (r.new_activity_since_briefing ? 'new_activity' : 'ready') as ScheduledSession['briefingStatus'],
-        date: dt.toISOString().slice(0, 10),
-        dayOfWeek: DOW[dt.getDay()],
-        time: dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        duration: '50 min',
-        location: 'telehealth',
-        isRecurring: false,
-        recurringCadence: 'weekly',
-        status: 'scheduled',
-      };
-    });
 }
 
 // Pending invitations → non-clickable caseload rows with a "pending" badge.

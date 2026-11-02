@@ -34,6 +34,14 @@ export const AdminView: React.FC = () => {
   const load = () => consoleApi.therapists().then((r) => setList(r.therapists || [])).catch(() => setList([]));
   useEffect(() => { load(); }, []);
 
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const verify = async (id: string) => {
+    setVerifying(id);
+    try { await consoleApi.setVerification(id, 'verified'); await load(); }
+    catch { /* the app shows a "Not saved" toast */ }
+    finally { setVerifying(null); }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -156,8 +164,18 @@ export const AdminView: React.FC = () => {
                 <div className="text-right shrink-0">
                   <p className="text-[13px] text-[#10151F]">{t.active_clients} / {t.seats ?? 1} clients</p>
                   <p className="text-[12px] text-[#9AA4B2]">
-                    {t.verification_status === 'verified' ? 'Verified' : 'Not verified'} · added {shortDate(t.created_at)}
+                    {t.verification_status === 'verified' ? 'Verified' : t.verification_status === 'rejected' ? 'Rejected' : 'Not verified'} · added {shortDate(t.created_at)}
                   </p>
+                  {/* Unverified therapists lose client access 2 days after signup. */}
+                  {t.verification_status !== 'verified' && (
+                    <button
+                      disabled={verifying === t.id}
+                      onClick={() => verify(t.id)}
+                      className="mt-1 text-[12px] font-medium text-[#0F766E] hover:underline disabled:opacity-50 cursor-pointer"
+                    >
+                      {verifying === t.id ? 'Verifying…' : 'Verify'}
+                    </button>
+                  )}
                 </div>
               </li>
             ))}

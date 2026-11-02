@@ -15,7 +15,6 @@ import { Client, TherapistProfile, ClientInvitation, RecurrenceCadence, SessionL
 import { invitationsApi, inviteLink } from '../api';
 import { InviteRelationship, InvitePayload } from './InviteRelationship';
 import { INITIAL_THERAPIST_PROFILE } from '../data/therapistData';
-import { DAYS_OF_WEEK, TIME_SLOTS, DURATION_OPTIONS, CURRENT_WEEK_DATES } from '../data/calendarUtils';
 
 interface InviteClientModalProps {
   isOpen: boolean;
@@ -166,7 +165,7 @@ export const InviteClientModal: React.FC<InviteClientModalProps> = ({
       invitationCode: code,
       status: 'pending',
       sentDate: 'Today',
-      forms: ['Initial Intake & Goals Questionnaire', 'HIPAA Informed Consent & Telehealth Agreement', 'Longitudinal Check-in Companion (Emora)'],
+      forms: ['Initial Intake & Goals Questionnaire', 'Informed Consent & Telehealth Agreement', 'Longitudinal Check-in Companion (Emora)'],
       customWelcomeNote: welcomeMessage,
     } as ClientInvitation);
 

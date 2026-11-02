@@ -232,6 +232,7 @@ export type RecurrenceCadence = 'weekly' | 'biweekly' | 'monthly' | 'one_time';
 export type SessionLocation = 'telehealth' | 'in_person';
 
 export interface NextSessionInfo {
+  at?: string; // ISO timestamp from the backend (therapist_client_links.next_session_at)
   display: string; // e.g. "Today · 12:30 PM"
   time: string;
   date: string; // YYYY-MM-DD e.g. "2026-08-27"
@@ -364,23 +365,4 @@ export interface ClientInvitation {
   isRecurring?: boolean;
   recurringCadence?: RecurrenceCadence;
   location?: SessionLocation;
-}
-
-export interface ScheduledSession {
-  id: string;
-  clientId: string;
-  clientName: string;
-  avatarInitials: string;
-  clientStatus: ClientStatus;
-  briefingStatus: BriefingStatus;
-  date: string; // "YYYY-MM-DD" e.g. "2026-08-27"
-  dayOfWeek: string; // "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
-  time: string; // "12:30 PM"
-  duration: string; // "50 min"
-  location: SessionLocation;
-  isRecurring: boolean;
-  recurringCadence: RecurrenceCadence;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  notes?: string;
-  focusTheme?: string;
 }

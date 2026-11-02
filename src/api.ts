@@ -52,9 +52,20 @@ async function request(method: string, path: string, body?: any) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     onUnauthorized(res.status, path);
+    reportApiError(method, path, res.status, data);
     throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
   }
   return data;
+}
+
+// Every failed call is announced app-wide ('uc:api-error'), so a save that the
+// backend rejected is never silently "saved" in the UI, and an account that is
+// pending verification gets one clear banner instead of empty client pages.
+function reportApiError(method: string, path: string, status: number, data: any) {
+  if (typeof window === 'undefined' || status === 401) return;
+  window.dispatchEvent(new CustomEvent('uc:api-error', {
+    detail: { method: method.toUpperCase(), path, status, code: data?.code || null, message: data?.error || `Request failed (${status})` },
+  }));
 }
 
 // A 401 on an AUTHENTICATED request means the session expired — clear it and
@@ -77,6 +88,7 @@ async function requestForm(path: string, form: FormData) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     onUnauthorized(res.status, path);
+    reportApiError('POST', path, res.status, data);
     throw Object.assign(new Error(data?.error || `Request failed (${res.status})`), { status: res.status, data });
   }
   return data;
@@ -183,10 +195,29 @@ export const consoleApi = {
   me: () => api.get('/console/me'),
   therapists: () => api.get('/console/therapists'),
   addTherapist: (b: { name: string; email: string; seats?: number }) => api.post('/console/therapists', b),
+  setVerification: (id: string, status: 'verified' | 'rejected' | 'pending') =>
+    api.post(`/console/therapists/${id}/verification`, { status }),
 };
+
+// An open risk signal Emora raised (crisis language, self-harm, etc.). Stays open
+// until the therapist acknowledges it.
+export interface RiskSignal {
+  id: string;
+  client_id: string;
+  client_name: string | null;
+  severity: 'urgent' | 'elevated' | string;
+  reason: string;
+  evidence: string | null;
+  created_at: string;
+}
 
 export const therapistApi = {
   clients: () => api.get('/therapist/clients'),
+  signals: (): Promise<{ signals: RiskSignal[] }> => api.get('/therapist/signals'),
+  ackSignal: (signalId: string) => api.post(`/therapist/signals/${signalId}/ack`, {}),
+  // The one saved next session (drives the day-before WhatsApp prep + the briefing). null clears it.
+  setNextSession: (id: string, next_session_at: string | null) =>
+    api.patch(`/therapist/clients/${id}/next-session`, { next_session_at }),
   overview: (id: string) => api.get(`/therapist/clients/${id}/overview`),
   journey: (id: string) => api.get(`/therapist/clients/${id}/journey`),
   // Full Emora chats — only returned when the client has turned sharing on (WhatsApp SHARE).
@@ -251,10 +282,6 @@ export const therapistApi = {
   extractContextImage: (id: string, file: File) => {
     const f = new FormData(); f.append('image', file);
     return api.postForm(`/therapist/clients/${id}/context/extract`, f);
-  },
-  scanNotes: (id: string, file: File) => {
-    const f = new FormData(); f.append('image', file);
-    return api.postForm(`/therapist/clients/${id}/notes/scan`, f);
   },
 };
 

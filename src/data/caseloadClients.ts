@@ -1,4 +1,4 @@
-import { Client, ScheduledSession } from '../types';
+import { Client } from '../types';
 
 // Anchor date: Thursday, August 27, 2026
 // Week: Aug 24 (Mon) to Aug 29 (Sat) 2026

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Lock, 
-  Database,
   Compass,
   CheckCircle2,
   Sparkles,
@@ -27,10 +26,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateTherapistProfile,
   onOpenOnboarding,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'practice' | 'notifications' | 'privacy'>('privacy');
-  const [briefingPrepLeadTime, setBriefingPrepLeadTime] = useState('2 hours before session');
-  const [somaticEmphasis, setSomaticEmphasis] = useState(true);
-  const [separateInterpretation, setSeparateInterpretation] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'practice' | 'privacy'>('privacy');
 
   // Local editable profile state
   const [name, setName] = useState(therapistProfile?.name || '');
@@ -120,7 +116,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Practice Settings
           </h1>
           <p className="text-[13px] text-[#6B7686] mt-1">
-            Clinician profile, briefing parameters, and longitudinal data safeguards
+            Your profile, practice details and account security
           </p>
         </div>
 
@@ -145,7 +141,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:text-[#10151F] hover:border-[#DCE2EA]'
           }`}
         >
-          Privacy & Model
+          Security & privacy
         </button>
         <button
           onClick={() => setActiveSubTab('profile')}
@@ -167,16 +163,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           Practice
         </button>
-        <button
-          onClick={() => setActiveSubTab('notifications')}
-          className={`px-4 py-2 rounded-lg transition-colors font-medium border cursor-pointer ${
-            activeSubTab === 'notifications'
-              ? 'bg-[#10151F] border-[#10151F] text-white'
-              : 'bg-white border-[#ECEFF3] text-[#6B7686] hover:text-[#10151F] hover:border-[#DCE2EA]'
-          }`}
-        >
-          Briefing Prep
-        </button>
       </div>
 
       {/* Privacy & Longitudinal Model Section */}
@@ -192,64 +178,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <a href={legalUrl('disclaimer')} target="_blank" rel="noreferrer" className="text-[#0D9488] underline">Medical &amp; Crisis</a>
             </div>
           </div>
-          <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl space-y-5">
-            <div className="flex items-center space-x-2.5">
-              <Database className="w-5 h-5 text-[#0D9488]" />
-              <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">
-                Longitudinal Model Architecture
-              </h2>
-            </div>
-
-            <p className="text-base sm:text-lg font-serif text-[#3A4453] leading-relaxed font-normal">
-              The clinical workspace operates on a single longitudinal model rather than disconnected report generators. Session context provided by the therapist and client activity between sessions are synthesized into grounded briefings, journey patterns, and actions.
-            </p>
-
-            {/* Architecture Flow Representation */}
-            <div className="p-5 rounded-xl bg-white border border-[#ECEFF3] space-y-3">
-              <div className="u-eyebrow">Underlying Loop</div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-                <div className="p-4 rounded-xl bg-white border border-[#ECEFF3]">
-                  <div className="font-semibold text-[#10151F] text-base font-serif">Session</div>
-                  <div className="text-[13px] text-[#6B7686] mt-0.5 font-medium">Therapist context</div>
-                </div>
-                <div className="p-4 rounded-xl bg-white border border-[#ECEFF3]">
-                  <div className="font-semibold text-[#10151F] text-base font-serif">Between Session</div>
-                  <div className="text-[13px] text-[#6B7686] mt-0.5 font-medium">Client journals & logs</div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#F1FAF9] border border-[#ECEFF3] text-[#0F766E]">
-                  <div className="font-semibold text-base font-serif">AI Synthesis</div>
-                  <div className="text-[13px] mt-0.5 font-medium">Next-session briefing</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 space-y-3">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={separateInterpretation}
-                  onChange={(e) => setSeparateInterpretation(e.target.checked)}
-                  className="rounded border-[#ECEFF3] text-[#0D9488] focus:ring-0 w-4 h-4"
-                />
-                <span className="text-sm sm:text-base text-[#10151F] font-medium">
-                  Strictly separate observed facts from AI interpretation in all briefings
-                </span>
-              </label>
-
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={somaticEmphasis}
-                  onChange={(e) => setSomaticEmphasis(e.target.checked)}
-                  className="rounded border-[#ECEFF3] text-[#0D9488] focus:ring-0 w-4 h-4"
-                />
-                <span className="text-sm sm:text-base text-[#10151F] font-medium">
-                  Highlight somatic tension and physiological logs in evidence drawer
-                </span>
-              </label>
-            </div>
-          </div>
-
           <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl space-y-3">
             <div className="flex items-center space-x-2.5">
               <Lock className="w-5 h-5 text-[#0D9488]" />
@@ -258,7 +186,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </h2>
             </div>
             <p className="text-base sm:text-lg font-serif text-[#3A4453] leading-relaxed font-normal">
-              Private therapist notes are encrypted client-side and never fed back into patient-accessible models. Zero-retention LLM inference ensures clinical notes stay strictly within your authenticated boundary.
+              Session transcripts, notes and client messages are encrypted at rest. Your private notes are never shown to the client. A client’s full chats stay private unless they choose to share them with you, and they can stop sharing anytime.
             </p>
           </div>
         </div>
@@ -506,31 +434,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Notifications Tab */}
-      {activeSubTab === 'notifications' && (
-        <div className="p-6 sm:p-7 bg-white border border-[#ECEFF3] rounded-2xl space-y-5">
-          <h2 className="text-xl sm:text-2xl font-serif font-semibold text-[#10151F]">
-            Briefing Preparation Timing
-          </h2>
-          <p className="text-base font-serif text-[#6B7686]">
-            When should the system synthesize the latest between-session client activity?
-          </p>
-          <div className="space-y-2.5">
-            {['1 hour before session', '2 hours before session', 'Morning of session (07:00 AM)'].map((opt) => (
-              <label key={opt} className="flex items-center space-x-3 p-3.5 rounded-lg bg-white border border-[#ECEFF3] cursor-pointer hover:border-[#DCE2EA] transition-colors">
-                <input
-                  type="radio"
-                  name="prepTime"
-                  checked={briefingPrepLeadTime === opt}
-                  onChange={() => setBriefingPrepLeadTime(opt)}
-                  className="text-[#0D9488] focus:ring-0"
-                />
-                <span className="text-[#10151F] font-medium text-sm">{opt}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
 
     </div>
   );

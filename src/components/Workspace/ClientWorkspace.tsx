@@ -10,10 +10,12 @@ import {
   Mail,
   UserPlus,
   Mic,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle,
+  CalendarClock
 } from 'lucide-react';
 import { SessionRecorder } from './SessionRecorder';
-import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS } from '../../api';
+import { therapistApi, CLIENT_LANGUAGES, CLIENT_GENDERS, RiskSignal } from '../../api';
 import { Client, EvidenceGroup, JourneyPattern, SessionRecord, ActionItem, TherapistNote } from '../../types';
 import { getClientAvatarTheme } from '../../utils/theme';
 import { BriefingView } from './BriefingView';
@@ -73,6 +75,54 @@ const EmoraVoiceLine: React.FC<{ client: Client }> = ({ client }) => {
   );
 };
 
+// "Next session" — the one date the backend keeps per client. It drives the WhatsApp
+// prep message the day before and the briefing's "since last session" window.
+const toLocalInput = (iso?: string) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const NextSessionLine: React.FC<{ client: Client; onSave?: (clientId: string, iso: string | null) => Promise<void> }> = ({ client, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const next = client.nextSession;
+  const canEdit = !!onSave && isRealId(client.id);
+  const save = async (value: string | null) => {
+    if (!onSave) return;
+    setSaving(true);
+    try { await onSave(client.id, value ? new Date(value).toISOString() : null); setEditing(false); }
+    catch { /* the app shows a "Not saved" toast */ }
+    finally { setSaving(false); }
+  };
+  if (editing) return (
+    <span className="flex flex-wrap items-center gap-2">
+      <input
+        type="datetime-local"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="rounded-lg border border-[#E2E7EE] bg-white px-2 py-1 text-[13px] text-[#10151F] focus:outline-none focus:border-[#0F766E]"
+      />
+      <button disabled={!draft || saving} onClick={() => save(draft)} className="text-[13px] font-medium text-white bg-[#0D9488] px-2.5 py-1 rounded-lg disabled:opacity-50 cursor-pointer">Save</button>
+      {next && <button disabled={saving} onClick={() => save(null)} className="text-[13px] text-[#B45309] cursor-pointer">Clear</button>}
+      <button onClick={() => setEditing(false)} className="text-[13px] text-[#6B7686] cursor-pointer">Cancel</button>
+    </span>
+  );
+  if (!next && !canEdit) return null;
+  return (
+    <span className="flex items-center gap-1.5 text-[#10151F]">
+      <CalendarClock className="w-4 h-4 text-[#0D9488]" />
+      {next ? <span className="font-medium">Next {next.display}</span> : <span className="text-[#6B7686]">No next session set</span>}
+      {canEdit && (
+        <button onClick={() => { setDraft(toLocalInput(next?.at)); setEditing(true); }} className="text-[13px] font-medium text-[#0F766E] hover:underline cursor-pointer ml-1">
+          {next ? 'Change' : 'Set'}
+        </button>
+      )}
+    </span>
+  );
+};
+
 interface ClientWorkspaceProps {
   client: Client;
   activeTab: 'briefing' | 'journey' | 'sessions' | 'actions' | 'notes' | 'chats';
@@ -82,6 +132,9 @@ interface ClientWorkspaceProps {
   onUpdateClient: (updatedClient: Client) => void;
   onOpenInviteClient?: (client: Client) => void;
   onSeedHistory?: () => void;
+  signals?: RiskSignal[];
+  onAckSignal?: (signalId: string) => void;
+  onSetNextSession?: (clientId: string, iso: string | null) => Promise<void>;
 }
 
 export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
@@ -93,6 +146,9 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   onUpdateClient,
   onOpenInviteClient,
   onSeedHistory,
+  signals = [],
+  onAckSignal,
+  onSetNextSession,
 }) => {
   const [selectedSessionId, setSelectedSessionId] = React.useState<string | null>(null);
   const [recording, setRecording] = React.useState(false);
@@ -152,7 +208,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
     const action: ActionItem = {
       id: `act-${Date.now()}`,
       title: newAction.title || 'Homework item',
-      assignedDate: newAction.assignedDate || 'Aug 27',
+      assignedDate: newAction.assignedDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
       attempts: 0,
       lastAttemptedDate: 'Pending',
       clientResponse: newAction.clientResponse || 'Pending client attempt.',
@@ -182,7 +238,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
   const handleAddNote = (newNote: Partial<TherapistNote>) => {
     const note: TherapistNote = {
       id: `note-${Date.now()}`,
-      date: newNote.date || '27 Aug 2026',
+      date: newNote.date || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       title: newNote.title || 'Clinical note',
       content: newNote.content || '',
       isPrivate: true,
@@ -241,12 +297,7 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-[#6B7686]">
-                    {client.nextSession && (
-                      <span className="flex items-center gap-1.5 text-[#10151F]">
-                        <Clock className="w-4 h-4 text-[#0D9488]" />
-                        <span className="font-medium">Next {client.nextSession.display}</span>
-                      </span>
-                    )}
+                    <NextSessionLine client={client} onSave={onSetNextSession} />
                     {client.lastSession && (
                       <span>Last <span className="text-[#10151F] font-medium">{client.lastSession.display}</span></span>
                     )}
@@ -289,6 +340,31 @@ export const ClientWorkspace: React.FC<ClientWorkspaceProps> = ({
               </div>
 
             </div>
+
+            {signals.length > 0 && (
+              <div className="rounded-2xl border border-[#FED7AA] bg-[#FFFBF5] divide-y divide-[#FDEBD3]">
+                {signals.map((sig) => (
+                  <div key={sig.id} className="px-5 py-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${sig.severity === 'urgent' ? 'text-[#DC2626]' : 'text-[#D97706]'}`} />
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-semibold text-[#10151F]">
+                          {sig.severity === 'urgent' ? 'Urgent' : 'Elevated'} risk signal
+                          <span className="font-normal text-[#6B7686]"> · {new Date(sig.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
+                        </p>
+                        <p className="text-[13px] text-[#3A4453]">{sig.reason}</p>
+                        {sig.evidence && <p className="text-[13px] text-[#6B7686] italic">“{sig.evidence}”</p>}
+                      </div>
+                    </div>
+                    {onAckSignal && (
+                      <button onClick={() => onAckSignal(sig.id)} className="shrink-0 self-start text-[13px] font-medium px-3 py-1.5 rounded-lg border border-[#ECEFF3] bg-white text-[#3A4453] hover:border-[#DCE2EA] cursor-pointer">
+                        Mark as seen
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Workspace Navigation Tabs */}
             <div className="border-b border-[#ECEFF3] flex items-center gap-1 overflow-x-auto">

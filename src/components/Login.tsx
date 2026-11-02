@@ -174,7 +174,7 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
         </div>
 
         <p className="text-[11px] text-[#9AA4B2] mt-4 flex items-center justify-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#0D9488]" /> Consent-gated · HIPAA-minded · clinician-led
+          <ShieldCheck className="w-3.5 h-3.5 text-[#0D9488]" /> Consent-first · encrypted · DPDP-aligned
         </p>
       </div>
     </div>

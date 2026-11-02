@@ -11,6 +11,14 @@ import type {
   ActivityItem, NextSessionInfo,
 } from '../types';
 
+// The client's most recent activity: their last WhatsApp message or their last
+// captured moment, whichever is newer (a chat alone doesn't create a moment).
+function lastActive(row: any): string | null {
+  const t = [row?.wa_last_message_at, row?.latest_activity_at].filter(Boolean)
+    .map((x: string) => new Date(x).getTime()).filter((n: number) => !Number.isNaN(n));
+  return t.length ? new Date(Math.max(...t)).toISOString() : null;
+}
+
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 function timeAgo(iso?: string | null): string {
   if (!iso) return '';
@@ -337,7 +345,7 @@ export function toClientStub(row: any): Client {
     status: (row.open_signals > 0 ? 'needs_attention' : 'active'),
     briefingStatus: row.new_activity_since_briefing ? 'new_activity' : (row.latest_briefing_at ? 'ready' : 'no_activity'),
     nextSession: toNextSession(row.next_session_at),
-    lastActivityAt: row.latest_activity_at || row.wa_last_message_at || null,
+    lastActivityAt: lastActive(row),
     lastSession: row.latest_session_at
       ? { display: fmtDate(row.latest_session_at), date: String(row.latest_session_at).slice(0, 10) }
       : null,
@@ -476,14 +484,16 @@ export async function loadRealClient(clientId: string): Promise<Client> {
 // Home activity feed: most-recent between-session activity across clients.
 export function toActivities(rows: any[]): ActivityItem[] {
   return (rows || [])
-    .filter((r) => r.latest_activity_at)
-    .sort((a, b) => new Date(b.latest_activity_at).getTime() - new Date(a.latest_activity_at).getTime())
+    .map((r) => ({ r, at: lastActive(r) }))
+    .filter((x) => x.at)
+    .sort((a, b) => new Date(b.at!).getTime() - new Date(a.at!).getTime())
     .slice(0, 12)
+    .map(({ r, at }) => ({ ...r, latest_activity_at: at }))
     .map((r) => ({
       id: `act-${r.client_id}`,
       clientId: r.client_id,
       clientName: r.name || 'Client',
-      action: r.new_activity_since_briefing ? 'New activity since the last briefing' : 'Logged a between-session moment',
+      action: r.new_activity_since_briefing ? 'New activity since the last briefing' : 'Active on WhatsApp',
       timeAgo: timeAgo(r.latest_activity_at),
       type: 'journal',
     }));

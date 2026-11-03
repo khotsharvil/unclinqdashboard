@@ -107,6 +107,7 @@ const ClientUpdates: React.FC<{ hw: BriefingHomework }> = ({ hw }) => {
       <div className="flex items-center gap-2 flex-wrap text-[12px]">
         <span className={`font-medium border rounded-full px-2 py-0.5 ${st.cls}`}>{st.label}</span>
         <span className="text-[#9AA4B2]">{hw.updates ? `${hw.updates} update${hw.updates === 1 ? '' : 's'} from the client` : 'No updates from the client yet'}</span>
+        {hw.seen_at && <span className="text-[#9AA4B2]">· Seen {new Date(hw.seen_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
       </div>
       {hw.reminders_stopped && <p className="text-[12px] text-[#B45309]">No reply to 3 WhatsApp reminders, so reminders have stopped.</p>}
       {shown.map((u, i) => (

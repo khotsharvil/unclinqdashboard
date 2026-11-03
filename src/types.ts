@@ -26,6 +26,7 @@ export interface BriefingHomework {
   latest: { at: string; words: string | null; summary: string | null }[];
   feedback?: string | null;
   reminders_stopped?: boolean; // 3 WhatsApp reminders, no answer, nothing written
+  seen_at?: string | null;      // they tapped [Got it]
 }
 
 export interface BriefingData {

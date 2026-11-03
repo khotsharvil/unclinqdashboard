@@ -223,6 +223,10 @@ export const therapistApi = {
     sleep: { date: string; band: 'under5' | '5to7' | '7plus' }[];
   }> => api.get(`/therapist/clients/${id}/wellbeing?days=${days}`),
   ackSignal: (signalId: string) => api.post(`/therapist/signals/${signalId}/ack`, {}),
+  // "Struggling" mood taps from the last 7 days not yet marked as seen.
+  struggling: (): Promise<{ checkins: { id: string; client_id: string; client_name: string | null; occurred_at: string }[] }> =>
+    api.get('/therapist/checkins/struggling'),
+  ackCheckin: (id: string) => api.post(`/therapist/checkins/${id}/ack`, {}),
   // The one saved next session (drives the day-before WhatsApp prep + the briefing). null clears it.
   setNextSession: (id: string, next_session_at: string | null) =>
     api.patch(`/therapist/clients/${id}/next-session`, { next_session_at }),

@@ -19,6 +19,8 @@ interface HomeViewProps {
   onOpenInviteClient?: () => void;
   signals?: RiskSignal[];
   onAckSignal?: (signalId: string) => void;
+  struggling?: { id: string; client_id: string; client_name: string | null; occurred_at: string }[];
+  onAckCheckin?: (id: string) => void;
 }
 
 // Saved sessions sort by their timestamp; demo sample sessions ("2:30 PM", no `at`)
@@ -50,6 +52,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenInviteClient,
   signals = [],
   onAckSignal,
+  struggling = [],
+  onAckCheckin,
 }) => {
   const now = Date.now();
   // Only real, saved sessions (therapist sets them on the client's page). Sessions
@@ -107,7 +111,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* 2. Needs attention: open risk signals, most severe first. */}
-      {signals.length > 0 && (
+      {(signals.length > 0 || struggling.length > 0) && (
         <section className="space-y-3">
           <p className="u-eyebrow text-[#B45309]">Needs your attention</p>
           <div className="bg-white rounded-2xl border border-[#FED7AA] divide-y divide-[#FDEBD3] overflow-hidden">
@@ -135,6 +139,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <button onClick={() => onAckSignal(sig.id)} className="text-[13px] font-medium px-3 py-1.5 rounded-lg border border-[#ECEFF3] text-[#3A4453] hover:border-[#DCE2EA] cursor-pointer">
                         Mark as seen
                       </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {/* The client tapped "Struggling" on the daily mood question. */}
+            {struggling.map((c) => {
+              const client = byId.get(c.client_id);
+              return (
+                <div key={c.id} className="px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="w-2 h-2 mt-1.5 rounded-full bg-[#D97706] shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-[#10151F]">
+                        <span className="font-semibold">{client?.name || c.client_name || 'A client'}</span>
+                        <span className="text-[#6B7686]"> · {ago(c.occurred_at)}</span>
+                      </p>
+                      <p className="text-[13px] text-[#3A4453] mt-0.5">Tapped “Struggling” on the daily mood question.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                    {client && (
+                      <button onClick={() => onOpenClientBriefing(client)} className="text-[13px] font-medium text-[#0F766E] hover:underline cursor-pointer px-2 py-1">Open</button>
+                    )}
+                    {onAckCheckin && (
+                      <button onClick={() => onAckCheckin(c.id)} className="text-[13px] font-medium px-3 py-1.5 rounded-lg border border-[#ECEFF3] text-[#3A4453] hover:border-[#DCE2EA] cursor-pointer">Mark as seen</button>
                     )}
                   </div>
                 </div>

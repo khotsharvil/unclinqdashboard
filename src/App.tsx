@@ -41,6 +41,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'clients' | 'workspace' | 'settings' | 'admin'>('home');
   // Open risk signals across the caseload (Emora-raised; open until acknowledged).
   const [signals, setSignals] = useState<RiskSignal[]>([]);
+  const [struggling, setStruggling] = useState<{ id: string; client_id: string; client_name: string | null; occurred_at: string }[]>([]);
   // Account-level block (verification pending / rejected) and the last failed save.
   const [accountBlock, setAccountBlock] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -232,6 +233,7 @@ export default function App() {
         .catch(() => setClients(stubs));
     }).catch(() => {});
     therapistApi.signals().then((r) => setSignals(r?.signals || [])).catch(() => {});
+    therapistApi.struggling().then((r) => setStruggling(r?.checkins || [])).catch(() => {});
   }, [authed, onboarded, caseloadVersion]);
 
   // Failed API calls: one clear banner for an account block, a toast for a failed save.
@@ -263,6 +265,10 @@ export default function App() {
         }
       })
       .catch(() => {});
+  };
+
+  const handleAckCheckin = (id: string) => {
+    therapistApi.ackCheckin(id).then(() => setStruggling((prev) => prev.filter((x) => x.id !== id))).catch(() => {});
   };
 
   // Save (or clear) a client's next session. This one date drives the WhatsApp
@@ -336,6 +342,8 @@ export default function App() {
             onNavigateToClients={() => setCurrentView('clients')}
             signals={signals}
             onAckSignal={handleAckSignal}
+            struggling={struggling}
+            onAckCheckin={handleAckCheckin}
             therapistProfile={therapistProfile}
             onOpenInviteClient={() => handleOpenInviteModal()}
           />

@@ -185,6 +185,7 @@ export interface SessionAfterTransition {
 }
 
 export interface SessionRecord {
+  therapistView?: string | null; // the therapist's private take (spoken/typed after the session)
   id: string;
   sessionNumber: number;
   date: string;

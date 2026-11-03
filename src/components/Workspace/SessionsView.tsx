@@ -199,6 +199,13 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
           </div>
         </div>
 
+        {(activeSession as any).therapistView && (
+          <div className="p-5 sm:p-6 rounded-2xl border border-[#E6E3F5] bg-[#FAFAFE] space-y-1.5">
+            <span className="text-[12px] font-semibold text-[#5B54A6]">Your take · only you see this</span>
+            <p className="text-[14px] text-[#3A4453] leading-relaxed whitespace-pre-line">{(activeSession as any).therapistView}</p>
+          </div>
+        )}
+
         {/* Your notes on this session — editable free-text (no fixed fields) */}
         <div className="p-5 sm:p-6 bg-white rounded-2xl border border-[#ECEFF3] space-y-3">
           <div className="flex items-center justify-between">
@@ -533,7 +540,7 @@ export const SessionsView: React.FC<SessionsViewProps> = ({
                       What was discussed
                     </div>
                     <p className="text-[13px] sm:text-sm text-[#3A4453] leading-relaxed">
-                      {session.duringWork?.whatDiscussed || session.summary || `${client.name.split(' ')[0]} described increasing difficulty disengaging from work after stressful days.`}
+                      {session.duringWork?.whatDiscussed || session.summary || 'No summary for this session.'}
                     </p>
 
                     {session.duringWork?.discussionPoints && session.duringWork.discussionPoints.length > 0 && (

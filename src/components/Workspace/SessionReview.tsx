@@ -33,6 +33,8 @@ export const SessionReview: React.FC<{
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState('');
   const [summary0, setSummary0] = useState('');
+  const [take, setTake] = useState<{ view: string; note: string } | null>(null);
+  const [showNote, setShowNote] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [added, setAdded] = useState<Added[]>([]);
   const [own, setOwn] = useState('');
@@ -49,6 +51,7 @@ export const SessionReview: React.FC<{
       if (!live) return;
       const s = r?.session || {};
       setSummary(s.session_summary || ''); setSummary0(s.session_summary || '');
+      if (s.therapist_view || s.therapist_note) setTake({ view: s.therapist_view || s.therapist_note, note: s.therapist_note || '' });
       setDrafts((r?.exercises || [])
         .filter((e: any) => !e.released && e.status !== 'skipped')
         .map((e: any) => ({ id: e.id, text: e.description, original: e.description, keep: true })));
@@ -112,6 +115,19 @@ export const SessionReview: React.FC<{
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-[#6B7686]">Check the summary and homework. Nothing is sent to {first} until you approve.</p>
+
+      {take && (
+        <div className="rounded-xl border border-[#E6E3F5] bg-[#FAFAFE] px-4 py-3">
+          <p className="text-[12px] font-semibold text-[#5B54A6]">Your take · only you see this</p>
+          <p className="text-[14px] text-[#3A4453] leading-relaxed mt-1 whitespace-pre-line">{take.view}</p>
+          {take.note && take.note !== take.view && (
+            <button onClick={() => setShowNote((v) => !v)} className="text-[12px] text-[#6B7686] hover:text-[#0F766E] mt-1.5 cursor-pointer">
+              {showNote ? 'Hide what you said' : 'Show what you said'}
+            </button>
+          )}
+          {showNote && <p className="text-[13px] text-[#6B7686] mt-1.5 whitespace-pre-line">“{take.note}”</p>}
+        </div>
+      )}
 
       <div>
         <label className={label}>Session summary</label>

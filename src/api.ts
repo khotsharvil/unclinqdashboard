@@ -244,14 +244,26 @@ export const therapistApi = {
   // Therapist records/uploads a session FOR a client (backend resolves client_id
   // against an active consent link). Audio streams to transcription, never stored.
   // levels: optional per-source loudness timeline from an online recording (no audio content).
-  uploadSession: (clientId: string, file: Blob, filename = 'session.webm', occurredAt?: string, levels?: string | null) => {
+  // awaitNote: the summary waits for the therapist's own take (or Skip / 30-min timeout).
+  uploadSession: (clientId: string, file: Blob, filename = 'session.webm', occurredAt?: string, levels?: string | null, awaitNote = false) => {
     const f = new FormData();
     f.append('audio', file, filename);
     f.append('client_id', clientId);
     if (occurredAt) f.append('occurred_at', occurredAt);
     if (levels) f.append('levels', levels);
+    if (awaitNote) f.append('await_note', '1');
     return api.postForm('/sessions', f);
   },
+  // The therapist's private take on a session: spoken (audio) or typed (text).
+  addTherapistNote: (sessionId: string, body: { blob?: Blob; text?: string }): Promise<{ ok: boolean; therapist_note: string }> => {
+    if (body.blob) {
+      const f = new FormData();
+      f.append('audio', body.blob, 'note.webm');
+      return api.postForm(`/sessions/${sessionId}/therapist-note`, f);
+    }
+    return api.post(`/sessions/${sessionId}/therapist-note`, { text: body.text || '' });
+  },
+  skipNote: (sessionId: string) => api.post(`/sessions/${sessionId}/skip-note`, {}),
   sessions: (clientId: string) => api.get(`/sessions?client_id=${encodeURIComponent(clientId)}`),
   // Approve a draft session's AI understanding → activates memory, releases actions.
   approveSession: (sessionId: string) => api.post(`/sessions/${sessionId}/approve-summary`, {}),

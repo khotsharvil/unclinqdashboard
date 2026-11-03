@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, Square, Upload, Loader2, Check, ShieldCheck, MonitorSmartphone, Users, AlertTriangle } from 'lucide-react';
 import { SessionReview } from './SessionReview';
+import { TherapistNoteStep } from './TherapistNoteStep';
 import { therapistApi } from '../../api';
 import { LevelTracker, ACTIVE_LEVEL, isHeadsetMic, isBluetoothMic } from './levelTracker';
 
@@ -82,6 +83,7 @@ export const SessionRecorder: React.FC<{
 }> = ({ clientId, clientName, onClose, onDone, nextSessionAt, onSetNextSession }) => {
   // Set once the upload is accepted; when processing is ready the review opens here.
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [noteSettled, setNoteSettled] = useState(false);
   const [consent, setConsent] = useState(false);
   const [mode, setMode] = useState<'inperson' | 'online'>('inperson');
   const [phase, setPhase] = useState<'idle' | 'recording' | 'uploading' | 'tracking'>('idle');
@@ -306,7 +308,7 @@ export const SessionRecorder: React.FC<{
       return;
     }
     try {
-      const res = await therapistApi.uploadSession(clientId, blob, filename, new Date().toISOString(), levelsTimeline);
+      const res = await therapistApi.uploadSession(clientId, blob, filename, new Date().toISOString(), levelsTimeline, true);
       const id = res.id;
       setSessionId(id);
       setPhase('tracking'); setStatus('uploaded');
@@ -384,6 +386,7 @@ export const SessionRecorder: React.FC<{
             />
           ) : phase === 'tracking' ? (
             <div className="py-2">
+              {!DEMO && sessionId && <TherapistNoteStep sessionId={sessionId} micId={micId} onSettled={() => setNoteSettled(true)} />}
               <p className="text-[14px] font-medium text-[#10151F] mb-3">{STAGE_LABEL[status] || 'Processing…'}</p>
               <div className="space-y-2">
                 {STAGES.map((st, i) => (
@@ -395,6 +398,9 @@ export const SessionRecorder: React.FC<{
                   </div>
                 ))}
               </div>
+              {status === 'transcribed' && !noteSettled && !DEMO && (
+                <p className="text-[12px] text-[#6B7686] mt-3">The summary starts as soon as you save your take or skip.</p>
+              )}
               <p className="text-[11px] text-[#9AA4B2] mt-4">Audio is transcribed and discarded, never stored. You can close this; processing continues, and the session waits for your review in the Sessions tab.</p>
               {status === 'ready' && <button onClick={onClose} className="u-btn-primary w-full justify-center mt-4">Done</button>}
             </div>

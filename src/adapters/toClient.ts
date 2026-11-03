@@ -283,6 +283,7 @@ async function buildSessions(clientId: string, journey: any): Promise<SessionRec
       date: fmtFull(s.occurred_at),
       duration: secs ? `${Math.round(secs / 60)} min` : undefined,
       summary: d.session?.session_summary || s.session_summary || (ready ? 'Session recorded.' : 'Transcribing & summarising…'),
+      therapistView: d.session?.therapist_view || d.session?.therapist_note || null,
       processing: !ready,
       summaryStatus: s.summary_status,
       needsApproval: ready && s.summary_status === 'draft',

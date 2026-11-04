@@ -64,13 +64,16 @@ const EmoraVoiceLine: React.FC<{ client: Client }> = ({ client }) => {
       <button onClick={() => setEditing(false)} className="text-[13px] text-[#9AA4B2] hover:text-[#10151F] cursor-pointer">Cancel</button>
     </div>
   );
+  // Not shown all the time: one quiet link opens it. Only a paused WhatsApp (they sent
+  // STOP) stays visible, because nothing reaches the client until they send START.
   return (
     <div className="flex flex-wrap items-center gap-x-2 text-[13px] text-[#6B7686]">
-      {client.whatsapp && <span className="text-[#0F766E] font-medium">{client.whatsapp.status === 'paused' ? 'WhatsApp paused (STOP)' : 'On WhatsApp'}</span>}
-      {client.whatsapp && <span className="text-[#C3CBD6]">·</span>}
-      <span>Emora speaks {lang ? <b className="font-medium text-[#10151F]">{lang}</b> : 'their language'}{gen ? <> · <b className="font-medium text-[#10151F]">{gen}</b></> : <> · <span className="text-[#B45309]">gender not set</span></>}</span>
+      {client.whatsapp?.status === 'paused' && (
+        <span className="text-[#B45309] font-medium">WhatsApp paused: they sent STOP</span>
+      )}
       <button onClick={() => { setDraft({ language: profile.language || '', gender: profile.gender || '' }); setEditing(true); }}
-        className="text-[#0F766E] hover:underline underline-offset-2 cursor-pointer">Edit</button>
+        title={`Emora speaks ${lang || 'their language'}${gen ? ` · ${gen}` : ''}`}
+        className="text-[12px] text-[#9AA4B2] hover:text-[#0F766E] cursor-pointer">Emora language &amp; voice</button>
     </div>
   );
 };

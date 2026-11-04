@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, ArrowRight, ArrowLeft, ShieldCheck } from 'lucide-react';
-import { authApi, setAuth } from '../api';
+import { authApi, setAuth, api, legalUrl } from '../api';
 
 /*
  * Therapist auth for the dashboard → B2B2C backend (OTP), email-first.
@@ -62,6 +62,15 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
     try {
       const res = await authApi.verifyOtp(email.trim(), code.trim(), isNew ? 'register' : 'login', name.trim() || undefined);
       if (res.totp_required) { setPreAuth(res.pre_auth_token); setStage('totp'); return; }
+      // A new therapist agreed to the terms on the name step (pressing Continue); record
+      // it and finish setup here. No separate onboarding screens.
+      if (isNew) {
+        try {
+          await authApi.recordConsent({ age_confirmed: true, accepted: [{ doc: 'terms_therapist' }, { doc: 'privacy' }, { doc: 'data_processing' }] });
+          await api.post('/auth/onboarding/complete');
+          res.user = { ...res.user, onboarding_completed: true };
+        } catch { /* the dashboard asks once more if this didn't save */ }
+      }
       setAuth(res.token, res.user);
       onAuthed();
     } catch (err: any) {
@@ -94,7 +103,7 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
     : stage === 'code'
     ? `Enter the 6-digit code we sent to ${email}.`
     : stage === 'name'
-    ? 'Looks like you’re new here — what should we call you?'
+    ? 'Looks like you’re new here. What should we call you?'
     : 'A clearer view of therapy between sessions.';
 
   const field = 'w-full bg-[#F7F9FB] border border-[#ECEFF3] rounded-lg px-3.5 py-2.5 text-sm text-[#10151F] focus:outline-none focus:border-[#0D9488] focus:bg-white';
@@ -135,8 +144,13 @@ export const Login: React.FC<{ onAuthed: () => void }> = ({ onAuthed }) => {
                 <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Dr. Jane Smith" className={field} />
               </div>
               {error && <p className="text-xs text-[#B0332F]">{error}</p>}
+              <p className="text-[12px] text-[#6B7686] leading-relaxed">
+                By continuing, you agree to the{' '}
+                <a href={legalUrl('terms-therapist')} target="_blank" rel="noreferrer" className="text-[#0F766E] underline underline-offset-2">Therapist Terms &amp; DPA</a> and{' '}
+                <a href={legalUrl('privacy')} target="_blank" rel="noreferrer" className="text-[#0F766E] underline underline-offset-2">Privacy Policy</a>.
+              </p>
               <button type="submit" disabled={busy} className="u-btn-primary w-full justify-center disabled:opacity-50">
-                <span>{busy ? 'Please wait…' : 'Send code'}</span>{!busy && <ArrowRight className="w-4 h-4" />}
+                <span>{busy ? 'Please wait…' : 'Continue'}</span>{!busy && <ArrowRight className="w-4 h-4" />}
               </button>
               <button type="button" onClick={resetToEmail} className="u-btn-ghost w-full justify-center text-xs">
                 <ArrowLeft className="w-3.5 h-3.5" /> Use a different email

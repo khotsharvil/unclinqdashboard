@@ -18,21 +18,17 @@ import { SettingsView } from './components/SettingsView';
 import { AdminView } from './components/AdminView';
 import { EvidencePanel } from './components/EvidencePanel';
 import { Login } from './components/Login';
-import { TherapistOnboarding } from './components/TherapistOnboarding';
+import { AgreeTerms } from './components/AgreeTerms';
 import { getUser, clearAuth, authApi, therapistApi, invitationsApi, consoleApi, RiskSignal } from './api';
 import { loadRealClient, toClientStub, toActivities, toNextSession, pendingInviteStubs } from './adapters/toClient';
 import { SeedHistoryModal } from './components/SeedHistoryModal';
 import { WhatsAppInviteModal } from './components/WhatsAppInviteModal';
 
 export default function App() {
-  // Demo can deep-link to the onboarding walkthrough: add ?onboarding or #onboarding.
-  const DEMO_ONBOARDING = DEMO && /onboarding/i.test(
-    (typeof window !== 'undefined' ? window.location.hash + window.location.search : '')
-  );
   // Logged-in signal is the cached user object; the JWT lives in the httpOnly
   // cookie now (#11 flip) and isn't readable from JS.
   const [authed, setAuthed] = useState<boolean>(DEMO || !!getUser());
-  const [onboarded, setOnboarded] = useState<boolean>(() => DEMO ? !DEMO_ONBOARDING : getUser()?.onboarding_completed !== false);
+  const [onboarded, setOnboarded] = useState<boolean>(() => DEMO || getUser()?.onboarding_completed !== false);
   // Real data only — no mock seed. Empty until the backend loads the therapist's
   // actual caseload; an empty account shows honest empty states, never sample clients.
   // (DEMO mode seeds the sample caseload so a backendless preview looks full.)
@@ -294,8 +290,9 @@ export default function App() {
   }, [authed]);
 
   if (!authed) return <Login onAuthed={() => { setAuthed(true); setOnboarded(getUser()?.onboarding_completed !== false); }} />;
-  // Therapist workspace-setup onboarding (first login only).
-  if (!onboarded) return <TherapistOnboarding therapistName={getUser()?.name} onDone={() => setOnboarded(true)} />;
+  // No setup wizard: sign-in asks only for a name. Older accounts that never agreed to
+  // the terms see one line, once.
+  if (!onboarded) return <AgreeTerms onDone={() => setOnboarded(true)} />;
 
   return (
     <div

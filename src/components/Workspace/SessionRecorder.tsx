@@ -322,7 +322,7 @@ export const SessionRecorder: React.FC<{
             if (st !== 'ready') setError('Processing failed. You can try again.');
           }
         } catch { /* keep polling */ }
-      }, 3000);
+      }, 5000);
     } catch (e: any) {
       setPhase('idle');
       setError(e?.data?.error || e?.message || 'Upload failed. Please try again.');

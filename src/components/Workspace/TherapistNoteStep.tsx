@@ -49,10 +49,14 @@ export const TherapistNoteStep: React.FC<{ sessionId: string; micId?: string; on
       chunks.current = [];
       const mr = new MediaRecorder(s);
       mr.ondataavailable = (e) => { if (e.data.size) chunks.current.push(e.data); };
+      const startedAt = Date.now();
       mr.onstop = () => {
         const blob = new Blob(chunks.current, { type: mr.mimeType || 'audio/webm' });
         cleanup();
-        if (!cancelled.current && blob.size) send({ blob });
+        if (cancelled.current || !blob.size) return;
+        // A second or two is almost always an accidental tap: don't send it.
+        if (Date.now() - startedAt < 2000) { setError('That was very short. Say a bit more, type it, or skip.'); setStage('offer'); return; }
+        send({ blob });
       };
       rec.current = mr;
       mr.start();
